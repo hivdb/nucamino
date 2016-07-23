@@ -24,22 +24,22 @@ var NucleicAcids = []NucleicAcid{
 	A, C, G, T, W, S, M, K, R, Y, B, D, H, V, N,
 }
 
-var nucleicAcidLookup = map[NucleicAcid]rune{
-	A: 'A',
-	C: 'C',
-	G: 'G',
-	T: 'T',
-	W: 'W',
-	S: 'S',
-	M: 'M',
-	K: 'K',
-	R: 'R',
-	Y: 'Y',
-	B: 'B',
-	D: 'D',
-	H: 'H',
-	V: 'V',
-	N: 'N',
+var nucleicAcidLookup = map[NucleicAcid]string{
+	A: "A",
+	C: "C",
+	G: "G",
+	T: "T",
+	W: "W",
+	S: "S",
+	M: "M",
+	K: "K",
+	R: "R",
+	Y: "Y",
+	B: "B",
+	D: "D",
+	H: "H",
+	V: "V",
+	N: "N",
 }
 
 var ambiguousNucleicAcids = map[NucleicAcid][]NucleicAcid{
@@ -60,7 +60,7 @@ var ambiguousNucleicAcids = map[NucleicAcid][]NucleicAcid{
 	N: {A, C, G, T},
 }
 
-func ToRune(na NucleicAcid) rune {
+func ToString(na NucleicAcid) string {
 	return nucleicAcidLookup[na]
 }
 

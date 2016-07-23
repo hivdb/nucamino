@@ -1,0 +1,28 @@
+
+# This file must be used with "source activate" or ". activate"
+
+if [[ -n "${GOENV+1}" ]]; then
+	deactivate
+fi
+
+export GOENV=nucamino
+export GOENV_OLDPS1=$PS1
+export GOENV_OLDGOPATH=$GOPATH
+export GOENV_OLDPATH=$PATH
+
+export GOPATH=/Users/philip/.goenv/nucamino
+export PATH="$GOPATH/bin:$PATH"
+export PS1="($(basename $GOPATH))$PS1"
+
+mkdir -p $(dirname $GOPATH/src/nucamino)
+rm -f $GOPATH/src/nucamino
+ln -s /Users/philip/gitrepo/nucamino $GOPATH/src/nucamino
+
+deactivate() {
+	export PS1=$GOENV_OLDPS1
+	export GOPATH=$GOENV_OLDGOPATH
+	export PATH=$GOENV_OLDPATH
+
+	unset GOENV GOENV_OLDPS1 GOENV_OLDPATH GOENV_OLDGOPATH
+	unset -f deactivate
+}

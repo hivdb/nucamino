@@ -29,27 +29,27 @@ var AminoAcids = []AminoAcid{
 	A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y,
 }
 
-var aminoAcidLookup = map[AminoAcid]rune{
-	A: 'A',
-	C: 'C',
-	D: 'D',
-	E: 'E',
-	F: 'F',
-	G: 'G',
-	H: 'H',
-	I: 'I',
-	K: 'K',
-	L: 'L',
-	M: 'M',
-	N: 'N',
-	P: 'P',
-	Q: 'Q',
-	R: 'R',
-	S: 'S',
-	T: 'T',
-	V: 'V',
-	W: 'W',
-	Y: 'Y',
+var aminoAcidLookup = map[AminoAcid]string{
+	A: "A",
+	C: "C",
+	D: "D",
+	E: "E",
+	F: "F",
+	G: "G",
+	H: "H",
+	I: "I",
+	K: "K",
+	L: "L",
+	M: "M",
+	N: "N",
+	P: "P",
+	Q: "Q",
+	R: "R",
+	S: "S",
+	T: "T",
+	V: "V",
+	W: "W",
+	Y: "Y",
 }
 
 var aminoAcidTripletLookup = map[AminoAcid]string{
@@ -75,7 +75,7 @@ var aminoAcidTripletLookup = map[AminoAcid]string{
 	Y: "Tyr",
 }
 
-func ToRune(aa AminoAcid) rune {
+func ToString(aa AminoAcid) string {
 	return aminoAcidLookup[aa]
 }
 

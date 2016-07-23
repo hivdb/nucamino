@@ -6,9 +6,9 @@ import (
 )
 
 type Codon struct {
-	base1 NucleicAcid
-	base2 NucleicAcid
-	base3 NucleicAcid
+	Base1 NucleicAcid
+	Base2 NucleicAcid
+	Base3 NucleicAcid
 }
 
 var CodonToAminoAcidTable = map[Codon]a.AminoAcid{
@@ -104,9 +104,9 @@ func CodonToAminoAcid(codon Codon) (a.AminoAcid, bool) {
 func GetUnambiguousCodons(codon Codon) chan Codon {
 	codonChan := make(chan Codon)
 	go func() {
-		for _, na1 := range GetUnambiguousNucleicAcids(codon.base1) {
-			for _, na2 := range GetUnambiguousNucleicAcids(codon.base2) {
-				for _, na3 := range GetUnambiguousNucleicAcids(codon.base3) {
+		for _, na1 := range GetUnambiguousNucleicAcids(codon.Base1) {
+			for _, na2 := range GetUnambiguousNucleicAcids(codon.Base2) {
+				for _, na3 := range GetUnambiguousNucleicAcids(codon.Base3) {
 					codonChan <- Codon{na1, na2, na3}
 				}
 			}
