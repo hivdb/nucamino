@@ -5,7 +5,7 @@ import (
 	n "../types/nucleic"
 	"fmt"
 	//"github.com/chrislusf/glow/flow"
-	"math"
+	"strings"
 )
 
 type tScoreType int
@@ -16,6 +16,8 @@ const (
 	DEL                  // F
 	CODON_INS            // C
 )
+
+const scoreTypeCount = 4
 
 func scoreTypeToString(scoreType tScoreType) string {
 	return map[tScoreType]string{
@@ -38,53 +40,64 @@ type tTypedPos struct {
 
 type tScoredPos struct {
 	tPos
-	score float64
+	score int
 }
 
 func posShift(pos tPos, nDelta int, aDelta int) tPos {
 	return tPos{pos.n + nDelta, pos.a + aDelta}
 }
 
-func flowMax(funcChan chan func() (float64, tTypedPos)) (float64, tTypedPos) {
-	score := math.Inf(-1)
-	prevPos := tTypedPos{tPos{0, 0}, GENERAL}
-	for cb := range funcChan {
-		tmpScore, tmpPrevPos := cb()
-		if tmpScore > score {
-			score = tmpScore
-			prevPos = tmpPrevPos
-		} else if tmpScore == score &&
-			prevPos.scoreType == GENERAL &&
-			prevPos.scoreType != tmpPrevPos.scoreType {
-			prevPos = tmpPrevPos
-		}
-	}
-	return score, prevPos
-}
-
 type Alignment struct {
 	nSeq                []n.NucleicAcid
 	aSeq                []a.AminoAcid
+	nSeqLen             int
+	aSeqLen             int
 	gapOpenPenalty      int
 	gapExtensionPenalty int
-	scoreMatrix         map[tTypedPos]float64
-	directionMatrix     map[tTypedPos]tTypedPos
+	scoreMatrix         []int
+	directionMatrix     []int
+	controlMatrix       []string
+	typedPosExist       []bool
+	codonInsPositions   []int
+	codonInsPosExist    []bool
 }
 
 func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, gapOpenPenalty int, gapExtensionPenalty int) *Alignment {
+	nSeqLen := len(nSeq)
+	aSeqLen := len(aSeq)
+	typedPosLen := scoreTypeCount * (nSeqLen + 1) * (aSeqLen + 1)
+	codonInsLen := (nSeqLen + 1) * (aSeqLen + 1)
 	return &Alignment{
 		nSeq:                nSeq,
 		aSeq:                aSeq,
+		nSeqLen:             nSeqLen,
+		aSeqLen:             aSeqLen,
 		gapOpenPenalty:      gapOpenPenalty,
 		gapExtensionPenalty: gapExtensionPenalty,
-		scoreMatrix:         make(map[tTypedPos]float64),
-		directionMatrix:     make(map[tTypedPos]tTypedPos),
+		scoreMatrix:         make([]int, typedPosLen),
+		directionMatrix:     make([]int, typedPosLen),
+		controlMatrix:       make([]string, typedPosLen),
+		typedPosExist:       make([]bool, typedPosLen),
+		codonInsPositions:   make([]int, codonInsLen),
+		codonInsPosExist:    make([]bool, codonInsLen),
 	}
 }
 
+const negInf = -int((^uint(0))>>1) - 1
+
+func (self *Alignment) GetCalcTimes() int {
+	counter := 0
+	for _, cond := range self.typedPosExist {
+		if cond {
+			counter++
+		}
+	}
+	return counter
+}
+
 func (self *Alignment) GetScorePath() []tScoredPos {
-	nSeqLen := self.nSeqLen()
-	aSeqLen := self.aSeqLen()
+	nSeqLen := self.nSeqLen
+	aSeqLen := self.aSeqLen
 	result := make([]tScoredPos, 100, 100)
 	print("          ")
 	for i := 0; i <= aSeqLen; i++ {
@@ -95,8 +108,8 @@ func (self *Alignment) GetScorePath() []tScoredPos {
 		fmt.Printf("%4s ", a.ToString(aa))
 	}
 	print("\n")
-	endPos := tTypedPos{tPos{nSeqLen, aSeqLen}, GENERAL}
-	maxScore := math.Inf(-1)
+	//endPos := self.getMatrixIndex(GENERAL, tPos{nSeqLen, aSeqLen})
+	maxScore := negInf
 	for i := 0; i <= nSeqLen; i++ {
 		fmt.Printf("%4d ", i)
 		if i > 0 {
@@ -105,65 +118,38 @@ func (self *Alignment) GetScorePath() []tScoredPos {
 			print("     ")
 		}
 		for j := 0; j <= aSeqLen; j++ {
-			score := self.scoreMatrix[tTypedPos{tPos{i, j}, GENERAL}]
+			tmpPos := self.getMatrixIndex(GENERAL, tPos{i, j})
+			score := self.scoreMatrix[tmpPos]
 			fmt.Printf("%4d ", int(score))
 			if score >= maxScore {
 				maxScore = score
-				endPos = tTypedPos{tPos{i, j}, GENERAL}
+				//endPos = tmpPos
 			}
 		}
 		print("\n")
 	}
-	var prevPos tTypedPos
-	for curPos := endPos; curPos != prevPos; prevPos, curPos = curPos, self.directionMatrix[curPos] {
-		fmt.Printf("%d %d %s %f\n", curPos.n, curPos.a,
-			scoreTypeToString(curPos.scoreType), self.scoreMatrix[curPos])
-	}
-
-	/*for n > -1 && a > -1 {
-		score := self.scoreMatrix[tTypedPos{tPos{n, a}, GENERAL}]
-		fmt.Printf("%d %d %f\n", n, a, score)
-		result = append(result, tScoredPos{tPos{n, a}, score})
-		prevScore1, prevScore2, prevScore3 := math.Inf(-1), math.Inf(-1), math.Inf(-1)
-		if n > 1 {
-			prevScore1 = self.scoreMatrix[tTypedPos{tPos{n - 1, a}, GENERAL}]
-		}
-		if n > 1 && a > 1 {
-			prevScore2 = self.scoreMatrix[tTypedPos{tPos{n - 1, a - 1}, GENERAL}]
-		}
-		if a > 1 {
-			prevScore3 = self.scoreMatrix[tTypedPos{tPos{n, a - 1}, GENERAL}]
-		}
-		fmt.Printf("%f, %f, %f\n", prevScore1, prevScore2, prevScore3)
-		if prevScore1*2 >= (prevScore2 + prevScore3) {
-			n--
-		} else if prevScore2*2 >= (prevScore1 + prevScore3) {
-			n--
-			a--
-		} else {
-			a--
-		}
-	}*/
 	return result
 }
 
-func (self *Alignment) getCachedScore(scoreType tScoreType, pos tPos) (float64, bool) {
-	score, present := self.scoreMatrix[tTypedPos{pos, scoreType}]
+func (self *Alignment) getMatrixIndex(scoreType tScoreType, pos tPos) int {
+	return (self.aSeqLen+1)*(pos.n+int(scoreType)*(self.nSeqLen+1)) + pos.a
+}
+
+func (self *Alignment) getCachedScore(scoreType tScoreType, pos tPos) (int, bool) {
+	mtIdx := self.getMatrixIndex(scoreType, pos)
+	score, present := 0, self.typedPosExist[mtIdx]
+	if present {
+		score = self.scoreMatrix[mtIdx]
+	}
 	return score, present
 }
 
-func (self *Alignment) setCachedScore(scoreType tScoreType, pos tPos, score float64, prevPos tTypedPos) {
-	typedPos := tTypedPos{pos, scoreType}
-	self.scoreMatrix[typedPos] = score
-	self.directionMatrix[typedPos] = prevPos
-}
-
-func (self *Alignment) nSeqLen() int {
-	return len(self.nSeq)
-}
-
-func (self *Alignment) aSeqLen() int {
-	return len(self.aSeq)
+func (self *Alignment) setCachedScore(scoreType tScoreType, pos tPos, score int, prevMatrixIdx int, ctl string) {
+	mtIdx := self.getMatrixIndex(scoreType, pos)
+	self.scoreMatrix[mtIdx] = score
+	self.directionMatrix[mtIdx] = prevMatrixIdx
+	self.controlMatrix[mtIdx] = ctl
+	self.typedPosExist[mtIdx] = true
 }
 
 func (self *Alignment) getNA(nPos int) n.NucleicAcid {
@@ -174,196 +160,282 @@ func (self *Alignment) getAA(aPos int) a.AminoAcid {
 	return self.aSeq[aPos-1]
 }
 
-func (self *Alignment) calcExtInsScore(pos tPos) float64 {
+func (self *Alignment) calcCodonInsPosition(pos tPos) int {
+	posIdx := self.getMatrixIndex(GENERAL, pos) // hack: GENERAL (0) means no offset
+	resultPos, present := self.codonInsPositions[posIdx], self.codonInsPosExist[posIdx]
+	if present {
+		return resultPos
+	}
+	if pos.n <= 3 && pos.a > 0 {
+		resultPos = 0
+	}
+
+	r := self.gapExtensionPenalty
+	prevPos := posShift(pos, -1, 0)
+	codonInsScoreCand1 := self.calcCodonInsScore(pos)
+	codonInsScoreCand2 := self.calcCodonInsScore(prevPos) + CalcGapScore(1, 0, r)
+
+	if pos.n >= 4 && pos.a > 0 {
+		if codonInsScoreCand1 > codonInsScoreCand2 {
+			resultPos = pos.n - 3
+		} else if codonInsScoreCand1 == codonInsScoreCand2 {
+			resultPos = self.calcCodonInsPosition(prevPos)
+		}
+	}
+	self.codonInsPositions[posIdx] = resultPos
+	self.codonInsPosExist[posIdx] = true
+	return resultPos
+}
+
+func (self *Alignment) calcCodonInsScore(pos tPos) int {
+	score, present := self.getCachedScore(CODON_INS, pos)
+	if present {
+		return score
+	}
+	q := self.gapOpenPenalty
+	r := self.gapExtensionPenalty
+	var prevMatrixIdx int
+	var control string
+	if pos.n <= 3 && pos.a > 0 {
+		score, prevMatrixIdx = negInf, self.getMatrixIndex(GENERAL, tPos{0, 0})
+		control = strings.Repeat("-", pos.a*3-pos.n) + strings.Repeat(".", pos.n)
+	} else if pos.a > 0 {
+		prevPos1 := posShift(pos, -1, 0)
+		prevPos2 := posShift(pos, -4, -1)
+		cand1 := self.calcCodonInsScore(prevPos1) + CalcGapScore(1, 0, r)
+		cand2 := self.calcScore(prevPos2) + CalcGapScore(1, q, r)
+		if cand1 > cand2 {
+			score, prevMatrixIdx, control = cand1, self.getMatrixIndex(CODON_INS, prevPos1), ""
+		} else {
+			score, prevMatrixIdx, control = cand2, self.getMatrixIndex(GENERAL, prevPos2), ""
+		}
+	}
+	self.setCachedScore(CODON_INS, pos, score, prevMatrixIdx, control)
+	return score
+}
+
+func (self *Alignment) calcExtInsScore(pos tPos) int {
 	score, present := self.getCachedScore(EXT_INS, pos)
 	if present {
 		return score
 	}
 	q := self.gapOpenPenalty
 	r := self.gapExtensionPenalty
-	var prevPos tTypedPos
+	var prevMatrixIdx int
+	var control string
 	if pos.n == 0 && pos.a > 0 {
-		score, prevPos = CalcGapScore(0, q, r), tTypedPos{tPos{0, 0}, GENERAL}
+		score, prevMatrixIdx = CalcGapScore(0, q, r), self.getMatrixIndex(GENERAL, tPos{0, 0})
+		control = strings.Repeat("---", pos.a)
 	} else {
-		funcChan := make(chan func() (float64, tTypedPos))
-		go func() {
-			gapPenalty1 := .0
-			gapPenalty2 := .0
-			if pos.a > 0 && pos.a < self.aSeqLen() {
-				gapPenalty1 = CalcGapScore(1, 0, r)
-				gapPenalty2 = CalcGapScore(1, q, r)
-			}
-			prevPos := posShift(pos, -1, 0)
-			funcChan <- func() (float64, tTypedPos) {
-				return self.calcExtInsScore(prevPos) + gapPenalty1,
-					tTypedPos{prevPos, EXT_INS}
-			}
-			funcChan <- func() (float64, tTypedPos) {
-				return self.calcScore(prevPos) + gapPenalty2,
-					tTypedPos{prevPos, GENERAL}
-			}
-			close(funcChan)
-		}()
-		score, prevPos = flowMax(funcChan)
+		gapPenalty1 := 0
+		gapPenalty2 := 0
+		if pos.a > 0 && pos.a < self.aSeqLen {
+			gapPenalty1 = CalcGapScore(1, 0, r)
+			gapPenalty2 = CalcGapScore(1, q, r)
+		}
+		prevPos := posShift(pos, -1, 0)
+		cand1 := self.calcExtInsScore(prevPos) + gapPenalty1
+		cand2 := self.calcScore(prevPos) + gapPenalty2
+		if cand1 >= cand2 {
+			score, prevMatrixIdx, control = cand1, self.getMatrixIndex(EXT_INS, prevPos), "+"
+		} else {
+			score, prevMatrixIdx, control = cand2, self.getMatrixIndex(GENERAL, prevPos), "+"
+		}
 	}
-	self.setCachedScore(EXT_INS, pos, score, prevPos)
+	self.setCachedScore(EXT_INS, pos, score, prevMatrixIdx, control)
 	return score
 }
 
-func (self *Alignment) calcDelScore(pos tPos) float64 {
+func (self *Alignment) calcDelScore(pos tPos) int {
 	score, present := self.getCachedScore(DEL, pos)
 	if present {
 		return score
 	}
 	q := self.gapOpenPenalty
 	r := self.gapExtensionPenalty
-	var prevPos tTypedPos
+	var prevMatrixIdx int
+	var control string
 	if pos.n > 0 && pos.a == 0 {
-		score, prevPos = CalcGapScore(0, q, r), tTypedPos{tPos{0, 0}, GENERAL}
+		score, prevMatrixIdx = CalcGapScore(0, q, r), self.getMatrixIndex(GENERAL, tPos{0, 0})
+		control = strings.Repeat("+", pos.n)
 	} else {
-		funcChan := make(chan func() (float64, tTypedPos))
 		curNA := self.getNA(pos.n)
 		var prevNA n.NucleicAcid
 		curAA := self.getAA(pos.a)
 		pos01 := posShift(pos, 0, -1)
 		pos11 := posShift(pos, -1, -1)
 		pos21 := posShift(pos, -2, -1)
-		if pos.n < self.nSeqLen() {
-			go func() {
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcDelScore(pos01) +
-						CalcGapScore(3, 0, r), tTypedPos{pos01, DEL}
+		score = negInf
+		if pos.n < self.nSeqLen {
+			cand := self.calcDelScore(pos01) + CalcGapScore(3, 0, r)
+			if cand >= score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(DEL, pos01), "---"
+			}
+
+			cand = self.calcScore(pos01) + CalcGapScore(3, q, r)
+			if cand > score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos01), "---"
+			}
+
+			cand = self.calcScore(pos11) +
+				CalcMutationScore(curNA, n.N, n.N, curAA) +
+				CalcGapScore(2, q, r)
+			if cand > score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos11), ".--"
+			}
+
+			cand = self.calcScore(pos11) +
+				CalcMutationScore(n.N, curNA, n.N, curAA) +
+				CalcGapScore(1, q, r)*2
+			if cand > score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos11), "-.-"
+			}
+
+			if pos.n > 1 {
+				prevNA = self.getNA(pos.n - 1)
+				cand = self.calcDelScore(pos11) +
+					CalcMutationScore(n.N, curNA, n.N, curAA) +
+					CalcGapScore(2, q, r)
+				if cand >= score {
+					score, prevMatrixIdx, control = cand, self.getMatrixIndex(DEL, pos11), "-.-"
 				}
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos01) +
-						CalcGapScore(3, q, r), tTypedPos{pos01, GENERAL}
+
+				cand = self.calcScore(pos21) +
+					CalcMutationScore(prevNA, curNA, n.N, curAA) +
+					CalcGapScore(1, q, r)
+				if cand >= score {
+					score, prevMatrixIdx, control = cand, self.getMatrixIndex(DEL, pos21), "..-"
 				}
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos11) +
-						CalcMutationScore(curNA, n.N, n.N, curAA) +
-						CalcGapScore(2, q, r), tTypedPos{pos11, GENERAL}
-				}
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos11) +
-						CalcMutationScore(n.N, curNA, n.N, curAA) +
-						CalcGapScore(1, q, r)*2, tTypedPos{pos11, GENERAL}
-				}
-				if pos.n > 1 {
-					prevNA = self.getNA(pos.n - 1)
-					funcChan <- func() (float64, tTypedPos) {
-						return self.calcDelScore(pos11) +
-							CalcMutationScore(n.N, curNA, n.N, curAA) +
-							CalcGapScore(2, q, r), tTypedPos{pos11, DEL}
-					}
-					funcChan <- func() (float64, tTypedPos) {
-						return self.calcScore(pos21) +
-							CalcMutationScore(prevNA, curNA, n.N, curAA) +
-							CalcGapScore(1, q, r), tTypedPos{pos21, GENERAL}
-					}
-				}
-				close(funcChan)
-			}()
+			}
 		} else {
-			go func() {
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcDelScore(pos01), tTypedPos{pos01, DEL}
-				}
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos01), tTypedPos{pos01, GENERAL}
-				}
-				close(funcChan)
-			}()
+			cand1 := self.calcDelScore(pos01)
+			cand2 := self.calcScore(pos01)
+			if cand1 >= cand2 {
+				score, prevMatrixIdx, control = cand1, self.getMatrixIndex(DEL, pos01), "-"
+			} else {
+				score, prevMatrixIdx, control = cand2, self.getMatrixIndex(GENERAL, pos01), "-"
+			}
 		}
-		score, prevPos = flowMax(funcChan)
 	}
-	self.setCachedScore(DEL, pos, score, prevPos)
+	self.setCachedScore(DEL, pos, score, prevMatrixIdx, control)
 	return score
 }
 
-func (self *Alignment) calcScore(pos tPos) float64 {
+func (self *Alignment) calcScore(pos tPos) int {
+	//fmt.Printf("%s\n", pos)
 	score, present := self.getCachedScore(GENERAL, pos)
 	if present {
 		return score
 	}
-	var prevPos tTypedPos
+	var prevMatrixIdx int
+	var control string
 	if pos.n == 0 || pos.a == 0 {
-		score, prevPos = 0, tTypedPos{pos, GENERAL}
+		score, prevMatrixIdx = 0, self.getMatrixIndex(GENERAL, pos)
 	} else {
 		q := self.gapOpenPenalty
 		r := self.gapExtensionPenalty
-		funcChan := make(chan func() (float64, tTypedPos))
 		curNA := self.getNA(pos.n)
 		var prevNA, prevNA2, prevNA3 n.NucleicAcid
 		curAA := self.getAA(pos.a)
-		go func() {
-			pos11 := posShift(pos, -1, -1)
-			pos21 := posShift(pos, -2, -1)
-			pos31 := posShift(pos, -3, -1)
-			pos41 := posShift(pos, -4, -1)
-			funcChan <- func() (float64, tTypedPos) {
-				return self.calcScore(pos11) +
-					CalcMutationScore(n.N, n.N, curNA, curAA) +
-					CalcGapScore(2, q, r), tTypedPos{pos11, GENERAL}
+		codonInsPos := self.calcCodonInsPosition(pos)
+		score = negInf
+		pos11 := posShift(pos, -1, -1)
+		pos21 := posShift(pos, -2, -1)
+		pos31 := posShift(pos, -3, -1)
+		pos41 := posShift(pos, -4, -1)
+		cand := /* #1 */ self.calcScore(pos11) +
+			CalcMutationScore(n.N, n.N, curNA, curAA) +
+			CalcGapScore(2, q, r)
+
+		if cand > score {
+			score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos11), "--."
+		}
+		if pos.n > 1 {
+			prevNA = self.getNA(pos.n - 1)
+			cand = /* #2 */ self.calcScore(pos21) +
+				CalcMutationScore(prevNA, n.N, curNA, curAA) +
+				CalcGapScore(1, q, r)
+			if cand > score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos21), ".-."
 			}
-			if pos.n > 1 {
-				prevNA = self.getNA(pos.n - 1)
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos21) +
-						CalcMutationScore(prevNA, n.N, curNA, curAA) +
-						CalcGapScore(1, q, r), tTypedPos{pos21, GENERAL}
-				}
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos21) +
-						CalcMutationScore(n.N, prevNA, curNA, curAA) +
-						CalcGapScore(1, q, r), tTypedPos{pos21, GENERAL}
-				}
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcDelScore(pos11) +
-						CalcMutationScore(n.N, n.N, curNA, curAA) +
-						CalcGapScore(1, 0, r), tTypedPos{pos11, DEL}
-				}
+
+			cand = /* #3 */ self.calcScore(pos21) +
+				CalcMutationScore(n.N, prevNA, curNA, curAA) +
+				CalcGapScore(1, q, r)
+			if cand > score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos21), "-.."
 			}
-			if pos.n > 2 {
-				prevNA2 = self.getNA(pos.n - 2)
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos31) +
-							CalcMutationScore(prevNA2, prevNA, curNA, curAA),
-						tTypedPos{pos31, GENERAL}
-				}
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcDelScore(pos21) +
-						CalcMutationScore(n.N, prevNA, curNA, curAA) +
-						CalcGapScore(1, 0, r), tTypedPos{pos21, DEL}
-				}
+
+			cand = /* #7 */ self.calcDelScore(pos11) +
+				CalcMutationScore(n.N, n.N, curNA, curAA) +
+				CalcGapScore(2, 0, r)
+			if cand >= score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(DEL, pos11), "--."
 			}
-			if pos.n > 3 {
-				prevNA3 = self.getNA(pos.n - 3)
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos41) +
-						CalcMutationScore(prevNA3, prevNA, curNA, curAA) +
-						CalcGapScore(1, q, r), tTypedPos{pos41, GENERAL}
-				}
-				funcChan <- func() (float64, tTypedPos) {
-					return self.calcScore(pos41) +
-						CalcMutationScore(prevNA3, prevNA2, curNA, curAA) +
-						CalcGapScore(1, q, r), tTypedPos{pos41, GENERAL}
-				}
+		}
+		if pos.n > 2 {
+			prevNA2 = self.getNA(pos.n - 2)
+			cand = /* #4 */ self.calcScore(pos31) +
+				CalcMutationScore(prevNA2, prevNA, curNA, curAA)
+			if cand > score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos31), "..."
 			}
-			funcChan <- func() (float64, tTypedPos) {
-				return self.calcExtInsScore(pos), tTypedPos{pos, EXT_INS}
+
+			cand = /* #8 */ self.calcDelScore(pos21) +
+				CalcMutationScore(n.N, prevNA, curNA, curAA) +
+				CalcGapScore(1, 0, r)
+			if cand >= score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(DEL, pos21), "-.."
 			}
-			funcChan <- func() (float64, tTypedPos) {
-				return self.calcDelScore(pos), tTypedPos{pos, DEL}
+		}
+		if pos.n > 3 {
+			prevNA3 = self.getNA(pos.n - 3)
+			cand = /* #5 */ self.calcScore(pos41) +
+				CalcMutationScore(prevNA3, prevNA, curNA, curAA) +
+				CalcGapScore(1, q, r)
+			if cand > score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos41), ".+.."
 			}
-			// TODO: need CODON_INS
-			close(funcChan)
-		}()
-		score, prevPos = flowMax(funcChan)
+
+			cand = /* #6 */ self.calcScore(pos41) +
+				CalcMutationScore(prevNA3, prevNA2, curNA, curAA) +
+				CalcGapScore(1, q, r)
+			if cand > score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos41), "..+."
+			}
+		}
+		cand = /* #9 */ self.calcExtInsScore(pos)
+		if cand >= score {
+			score, prevMatrixIdx, control = cand, self.getMatrixIndex(EXT_INS, pos), ""
+		}
+		cand = /* #10 */ self.calcDelScore(pos)
+		if cand >= score {
+			score, prevMatrixIdx, control = cand, self.getMatrixIndex(DEL, pos), ""
+		}
+		if codonInsPos > 0 {
+			cand = /* #11 */ self.calcCodonInsScore(pos) +
+				CalcMutationScore(
+					self.getNA(codonInsPos),
+					prevNA, curNA, curAA)
+			if cand >= score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(CODON_INS, pos),
+					"."+strings.Repeat("+", pos.n-1-codonInsPos)+".."
+			}
+			cand = /* #12 */ self.calcCodonInsScore(pos) +
+				CalcMutationScore(
+					self.getNA(codonInsPos),
+					self.getNA(codonInsPos+1),
+					curNA, curAA)
+			if cand >= score {
+				score, prevMatrixIdx, control = cand, self.getMatrixIndex(CODON_INS, pos),
+					".."+strings.Repeat("+", pos.n-1-codonInsPos)+"."
+			}
+		}
 	}
-	self.setCachedScore(GENERAL, pos, score, prevPos)
+	self.setCachedScore(GENERAL, pos, score, prevMatrixIdx, control)
 	return score
 }
 
-func (self *Alignment) CalcScore() float64 {
-	return self.calcScore(tPos{self.nSeqLen(), self.aSeqLen()})
+func (self *Alignment) CalcScore() int {
+	return self.calcScore(tPos{self.nSeqLen, self.aSeqLen})
 }

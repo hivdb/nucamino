@@ -1,30 +1,46 @@
 package alignment
 
-import c "../types/codon"
-import a "../types/amino"
-import n "../types/nucleic"
-import . "../data"
+import (
+	. "../data"
+	a "../types/amino"
+	c "../types/codon"
+	n "../types/nucleic"
+)
 
-type Mutation struct {
-	codon     c.Codon
-	consensus a.AminoAcid
+type tScoreAndPresent struct {
+	score   int
+	present bool
 }
 
-var mutationScoreTable = make(map[Mutation]float64)
+const scoreScale = 100
+
+var numN = n.NumNucleicAcids
+var mutationScoreArr []tScoreAndPresent
+
+func getMutationUniq(codon c.Codon, consensus a.AminoAcid) int {
+	numN := n.NumNucleicAcids
+	r := int(codon.Base1)
+	r = r*numN + int(codon.Base2)
+	r = r*numN + int(codon.Base3)
+	r += numN * numN * numN * int(consensus)
+	return r
+}
 
 func CalcGapScore(
 	gapLength int,
 	gapOpenPenalty int,
-	gapExtensionPenalty int) float64 {
-	return float64(-gapOpenPenalty - gapLength*gapExtensionPenalty)
+	gapExtensionPenalty int) int {
+	return (-gapOpenPenalty - gapLength*gapExtensionPenalty) * scoreScale
 }
 
-func calcMutationScore(codon c.Codon, consensus a.AminoAcid) float64 {
-	// Use from cache
-	mut := Mutation{codon, consensus}
-	score, present := mutationScoreTable[mut]
-	if present {
-		return score
+func CalcMutationScore(
+	base1 n.NucleicAcid, base2 n.NucleicAcid,
+	base3 n.NucleicAcid, consensus a.AminoAcid) int {
+	codon := c.Codon{base1, base2, base3}
+	mutUniq := getMutationUniq(codon, consensus)
+	sap := mutationScoreArr[mutUniq]
+	if sap.present {
+		return sap.score
 	}
 	scores := 0
 	numAAs := 0
@@ -39,28 +55,17 @@ func calcMutationScore(codon c.Codon, consensus a.AminoAcid) float64 {
 			numAAs++
 		}
 	}
-	score = float64(scores) / float64(numAAs)
-	mutationScoreTable[mut] = score
+	score := scores * scoreScale / numAAs
+	mutationScoreArr[mutUniq] = tScoreAndPresent{score, true}
 	return score
 }
 
-func CalcMutationScore(
-	base1 n.NucleicAcid, base2 n.NucleicAcid,
-	base3 n.NucleicAcid, consensus a.AminoAcid) float64 {
-	base1 = base1
-	return calcMutationScore(
-		c.Codon{base1, base2, base3},
-		consensus)
-}
-
-func GetMutationScoreTable() map[Mutation]float64 {
-	if len(mutationScoreTable) == 0 {
-		for codon := range c.GenAllCodons() {
-			for _, cons := range a.AminoAcids {
-				mut := Mutation{codon, cons}
-				mutationScoreTable[mut] = calcMutationScore(codon, cons)
-			}
+func init() {
+	arrLen := numN * numN * numN * a.NumAminoAcids
+	mutationScoreArr = make([]tScoreAndPresent, arrLen)
+	/*for codon := range c.GenAllCodons() {
+		for _, cons := range a.AminoAcids {
+			calcMutationScore(codon, cons)
 		}
-	}
-	return mutationScoreTable
+	}*/
 }
