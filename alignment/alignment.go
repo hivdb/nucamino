@@ -51,12 +51,12 @@ func posShift(pos tPos, nDelta int, aDelta int) tPos {
 type Alignment struct {
 	nSeq                []n.NucleicAcid
 	aSeq                []a.AminoAcid
+	maxScorePos         tPos
 	stopCodonPenalty    int
 	nSeqLen             int
 	aSeqLen             int
 	gapOpenPenalty      int
 	gapExtensionPenalty int
-	scoreMatrix         []int
 	directionMatrix     []int
 	codonInsPositions   []int
 }
@@ -66,10 +66,8 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, gapOpenPenalty int, 
 	aSeqLen := len(aSeq)
 	typedPosLen := scoreTypeCount * (nSeqLen + 1) * (aSeqLen + 1)
 	codonInsLen := (nSeqLen + 1) * (aSeqLen + 1)
-	scoreMatrix := make([]int, typedPosLen)
 	directionMatrix := make([]int, typedPosLen)
 	for i := 0; i < typedPosLen; i++ {
-		scoreMatrix[i] = negInf
 		directionMatrix[i] = -1
 	}
 	codonInsPositions := make([]int, codonInsLen)
@@ -84,7 +82,6 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, gapOpenPenalty int, 
 		aSeqLen:             aSeqLen,
 		gapOpenPenalty:      gapOpenPenalty,
 		gapExtensionPenalty: gapExtensionPenalty,
-		scoreMatrix:         scoreMatrix,
 		directionMatrix:     directionMatrix,
 		codonInsPositions:   codonInsPositions,
 	}
@@ -101,8 +98,8 @@ func (self *Alignment) GetCalcInfo() (int, int) {
 }
 
 func (self *Alignment) GetScorePath() []tScoredPos {
-	nSeqLen := self.nSeqLen
-	aSeqLen := self.aSeqLen
+	//nSeqLen := self.nSeqLen
+	//aSeqLen := self.aSeqLen
 	result := make([]tScoredPos, 100, 100)
 	//print("          ")
 	//for i := 0; i <= aSeqLen; i++ {
@@ -113,8 +110,8 @@ func (self *Alignment) GetScorePath() []tScoredPos {
 	//	fmt.Printf("%4s ", a.ToString(aa))
 	//}
 	//print("\n")
-	endMtIdx := self.getMatrixIndex(GENERAL, tPos{0, 0})
-	maxScore := negInf
+	endMtIdx := self.getMatrixIndex(GENERAL, self.maxScorePos)
+	/*maxScore := negInf
 	for i := 0; i <= nSeqLen; i++ {
 		//fmt.Printf("%4d ", i)
 		//if i > 0 {
@@ -132,7 +129,7 @@ func (self *Alignment) GetScorePath() []tScoredPos {
 			}
 		}
 		//print("\n")
-	}
+	}*/
 	lastN, lastA := -1, -1
 	var nLine, aLine, cLine string
 	for endMtIdx >= 0 {
@@ -175,18 +172,9 @@ func (self *Alignment) getTypedPos(matrixIndex int) (tScoreType, tPos) {
 	return scoreType, tPos{n, a}
 }
 
-func (self *Alignment) getCachedScore(scoreType tScoreType, pos tPos) (int, bool) {
+func (self *Alignment) setCachedScore(scoreType tScoreType, pos tPos, prevMatrixIdx int) {
 	mtIdx := self.getMatrixIndex(scoreType, pos)
-	score := self.scoreMatrix[mtIdx]
-	present := score != negInf
-	return score, present
-}
-
-func (self *Alignment) setCachedScore(scoreType tScoreType, pos tPos, score int, prevMatrixIdx int /*, ctl string*/) {
-	mtIdx := self.getMatrixIndex(scoreType, pos)
-	self.scoreMatrix[mtIdx] = score
 	self.directionMatrix[mtIdx] = prevMatrixIdx
-	//self.controlMatrix[mtIdx] = ctl
 }
 
 func (self *Alignment) getNA(nPos int) n.NucleicAcid {
@@ -251,11 +239,9 @@ func (self *Alignment) getAA(aPos int) a.AminoAcid {
 	return score
 }*/
 
-func (self *Alignment) calcExtInsScore(pos tPos) int {
-	score, present := self.getCachedScore(EXT_INS, pos)
-	if present {
-		return score
-	}
+func (self *Alignment) calcExtInsScore(pos tPos,
+	gScore10 int, iScore10 int) (int, int) {
+	score := negInf
 	q := self.gapOpenPenalty
 	r := self.gapExtensionPenalty
 	var prevMatrixIdx int
@@ -270,24 +256,22 @@ func (self *Alignment) calcExtInsScore(pos tPos) int {
 		gapPenalty1 := CalcGapScore(1, 0, r)
 		gapPenalty2 := CalcGapScore(1, q, r)
 		//}
-		prevPos := posShift(pos, -1, 0)
-		cand1 := self.calcExtInsScore(prevPos) + gapPenalty1
-		cand2 := self.calcScore(prevPos) + gapPenalty2
+		pos10 := posShift(pos, -1, 0)
+		cand1 := iScore10 + gapPenalty1
+		cand2 := gScore10 + gapPenalty2
 		if cand1 >= cand2 {
-			score, prevMatrixIdx /*, control*/ = cand1, self.getMatrixIndex(EXT_INS, prevPos) //, "+"
+			score, prevMatrixIdx /*, control*/ = cand1, self.getMatrixIndex(EXT_INS, pos10) //, "+"
 		} else {
-			score, prevMatrixIdx /*, control*/ = cand2, self.getMatrixIndex(GENERAL, prevPos) //, "+"
+			score, prevMatrixIdx /*, control*/ = cand2, self.getMatrixIndex(GENERAL, pos10) //, "+"
 		}
 	}
-	self.setCachedScore(EXT_INS, pos, score, prevMatrixIdx /*, control*/)
-	return score
+	return score, prevMatrixIdx
 }
 
-func (self *Alignment) calcDelScore(pos tPos) int {
-	score, present := self.getCachedScore(DEL, pos)
-	if present {
-		return score
-	}
+func (self *Alignment) calcDelScore(pos tPos,
+	gScore01 int, gScore11 int, gScore21 int,
+	dScore01 int, dScore11 int) (int, int) {
+	score := negInf
 	q := self.gapOpenPenalty
 	r := self.gapExtensionPenalty
 	var prevMatrixIdx int
@@ -295,7 +279,7 @@ func (self *Alignment) calcDelScore(pos tPos) int {
 	if pos.n > 0 && pos.a == 0 {
 		score, prevMatrixIdx = CalcGapScore(0, q, r), self.getMatrixIndex(GENERAL, tPos{0, 0})
 		//control = strings.Repeat("+", pos.n)
-	} else {
+	} else if pos.n > 0 {
 		curNA := self.getNA(pos.n)
 		var prevNA n.NucleicAcid
 		curAA := self.getAA(pos.a)
@@ -304,24 +288,24 @@ func (self *Alignment) calcDelScore(pos tPos) int {
 		pos21 := posShift(pos, -2, -1)
 		score = negInf
 		//if pos.n < self.nSeqLen {
-		cand := self.calcDelScore(pos01) + CalcGapScore(3, 0, r)
+		cand := dScore01 + CalcGapScore(3, 0, r)
 		if cand >= score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, pos01) //, "---"
 		}
 
-		cand = self.calcScore(pos01) + CalcGapScore(3, q, r)
+		cand = gScore01 + CalcGapScore(3, q, r)
 		if cand > score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, pos01) //, "---"
 		}
 
-		cand = self.calcScore(pos11) +
+		cand = gScore11 +
 			self.CalcMutationScore(curNA, n.N, n.N, curAA) +
 			CalcGapScore(2, q, r)
 		if cand > score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, pos11) //, ".--"
 		}
 
-		cand = self.calcScore(pos11) +
+		cand = gScore11 +
 			self.CalcMutationScore(n.N, curNA, n.N, curAA) +
 			CalcGapScore(1, q, r)*2
 		if cand > score {
@@ -330,14 +314,14 @@ func (self *Alignment) calcDelScore(pos tPos) int {
 
 		if pos.n > 1 {
 			prevNA = self.getNA(pos.n - 1)
-			cand = self.calcDelScore(pos11) +
+			cand = dScore11 +
 				self.CalcMutationScore(n.N, curNA, n.N, curAA) +
 				CalcGapScore(2, q, r)
 			if cand >= score {
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, pos11) //, "-.-"
 			}
 
-			cand = self.calcScore(pos21) +
+			cand = gScore21 +
 				self.CalcMutationScore(prevNA, curNA, n.N, curAA) +
 				CalcGapScore(1, q, r)
 			if cand >= score {
@@ -355,17 +339,16 @@ func (self *Alignment) calcDelScore(pos tPos) int {
 			}
 		}*/
 	}
-	self.setCachedScore(DEL, pos, score, prevMatrixIdx /*, control*/)
-	return score
+	return score, prevMatrixIdx
 }
 
-func (self *Alignment) calcScore(pos tPos) int {
-	//fmt.Printf("%s\n", pos)
-	score, present := self.getCachedScore(GENERAL, pos)
-	if present {
-		return score
-	}
+func (self *Alignment) calcScore(
+	pos tPos,
+	gScore11 int, gScore21 int, gScore31 int,
+	iScore00 int,
+	dScore00 int, dScore11 int, dScore21 int) (int, int) {
 	var prevMatrixIdx int
+	score := negInf
 	//var control string
 	if pos.n == 0 || pos.a == 0 {
 		score, prevMatrixIdx = 0, self.getMatrixIndex(GENERAL, pos)
@@ -381,24 +364,24 @@ func (self *Alignment) calcScore(pos tPos) int {
 		pos21 := posShift(pos, -2, -1)
 		pos31 := posShift(pos, -3, -1)
 		//pos41 := posShift(pos, -4, -1)
-		if cand := /* #1 */ self.calcScore(pos11) +
+		if cand := /* #1 */ gScore11 +
 			self.CalcMutationScore(n.N, n.N, curNA, curAA) +
 			CalcGapScore(2, q, r); cand > score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, pos11) //, "--."
 		}
 		if pos.n > 1 {
 			prevNA = self.getNA(pos.n - 1)
-			if cand := /* #2 */ self.calcScore(pos21) +
+			if cand := /* #2 */ gScore21 +
 				self.CalcMutationScore(prevNA, n.N, curNA, curAA) +
 				CalcGapScore(1, q, r); cand > score {
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, pos21) //, ".-."
 			}
-			if cand := /* #3 */ self.calcScore(pos21) +
+			if cand := /* #3 */ gScore21 +
 				self.CalcMutationScore(n.N, prevNA, curNA, curAA) +
 				CalcGapScore(1, q, r); cand > score {
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, pos21) //, "-.."
 			}
-			if cand := /* #7 */ self.calcDelScore(pos11) +
+			if cand := /* #7 */ dScore11 +
 				self.CalcMutationScore(n.N, n.N, curNA, curAA) +
 				CalcGapScore(2, 0, r); cand >= score {
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, pos11) //, "--."
@@ -406,12 +389,12 @@ func (self *Alignment) calcScore(pos tPos) int {
 		}
 		if pos.n > 2 {
 			prevNA2 = self.getNA(pos.n - 2)
-			if cand := /* #4 */ self.calcScore(pos31) +
+			if cand := /* #4 */ gScore31 +
 				self.CalcMutationScore(prevNA2, prevNA, curNA, curAA); cand > score {
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, pos31) //, "..."
 			}
 
-			if cand := /* #8 */ self.calcDelScore(pos21) +
+			if cand := /* #8 */ dScore21 +
 				self.CalcMutationScore(n.N, prevNA, curNA, curAA) +
 				CalcGapScore(1, 0, r); cand >= score {
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, pos21) //, "-.."
@@ -436,10 +419,10 @@ func (self *Alignment) calcScore(pos tPos) int {
 				}
 			}
 		*/
-		if cand := /* #9 */ self.calcExtInsScore(pos); cand >= score {
+		if cand := /* #9 */ iScore00; cand >= score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(EXT_INS, pos) //, ""
 		}
-		if cand := /* #10 */ self.calcDelScore(pos); cand >= score {
+		if cand := /* #10 */ dScore00; cand >= score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, pos) //, ""
 		}
 		/*
@@ -465,17 +448,71 @@ func (self *Alignment) calcScore(pos tPos) int {
 			}
 		*/
 	}
-	self.setCachedScore(GENERAL, pos, score, prevMatrixIdx /*, control*/)
-	return score
+	return score, prevMatrixIdx
 }
 
 func (self *Alignment) CalcScore() int {
-	/*score := negInf
-	step := 10
+	maxScore := negInf
+	maxScorePos := tPos{0, 0}
+	gScores := make([]int, self.nSeqLen+1)
+	dScores := make([]int, self.nSeqLen+1)
+	gScoresCur := make([]int, self.nSeqLen+1)
+	dScoresCur := make([]int, self.nSeqLen+1)
 
-	for i, j := step*3, 0; i <= self.nSeqLen && j <= self.aSeqLen; {
-		newScore := self.calcScore(tPos{i, j})
+	for j := 0; j <= self.aSeqLen; j++ {
+		gScore10 := negInf
+		iScore10 := negInf
+		for i := 0; i <= self.nSeqLen; i++ {
+			pos := tPos{i, j}
 
-	}*/
-	return self.calcScore(tPos{self.nSeqLen, self.aSeqLen})
+			gScore01 := gScores[i]
+			dScore01 := dScores[i]
+			gScore11, gScore21, gScore31 := negInf, negInf, negInf
+			dScore11, dScore21 := negInf, negInf
+			if i > 0 {
+				gScore11 = gScores[i-1]
+				dScore11 = dScores[i-1]
+			}
+			if i > 1 {
+				gScore21 = gScores[i-2]
+				dScore21 = dScores[i-2]
+			}
+			if i > 2 {
+				gScore31 = gScores[i-3]
+			}
+			iScore00, iPrevMtIdx := self.calcExtInsScore(pos,
+				gScore10, iScore10)
+
+			self.setCachedScore(EXT_INS, pos, iPrevMtIdx)
+
+			dScore00, dPrevMtIdx := self.calcDelScore(pos,
+				gScore01, gScore11, gScore21,
+				dScore01, dScore11)
+
+			dScoresCur[i] = dScore00
+			self.setCachedScore(DEL, pos, dPrevMtIdx)
+
+			gScore00, gPrevMtIdx := self.calcScore(pos,
+				gScore11, gScore21, gScore31,
+				iScore00,
+				dScore00, dScore11, dScore21)
+
+			gScoresCur[i] = gScore00
+			self.setCachedScore(GENERAL, pos, gPrevMtIdx)
+
+			if gScore00 >= maxScore {
+				maxScore = gScore00
+				maxScorePos = pos
+			}
+
+			gScore10 = gScore00
+			iScore10 = iScore00
+		}
+
+		gScores, gScoresCur = gScoresCur, gScores
+		dScores, dScoresCur = dScoresCur, dScores
+
+	}
+	self.maxScorePos = maxScorePos
+	return maxScore
 }
