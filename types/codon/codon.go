@@ -3,12 +3,21 @@ package codon
 import (
 	a "../amino"
 	. "../nucleic"
+	"strings"
 )
 
 type Codon struct {
 	Base1 NucleicAcid
 	Base2 NucleicAcid
 	Base3 NucleicAcid
+}
+
+var StopCodons = map[Codon]bool{
+	Codon{T, A, A}: true,
+	Codon{T, A, G}: true,
+	Codon{T, G, A}: true,
+	Codon{T, A, R}: true, // TAA & TAG
+	Codon{T, R, A}: true, // TAA & TGA
 }
 
 var CodonToAminoAcidTable = map[Codon]a.AminoAcid{
@@ -57,8 +66,6 @@ var CodonToAminoAcidTable = map[Codon]a.AminoAcid{
 
 	Codon{T, A, T}: a.Y,
 	Codon{T, A, C}: a.Y,
-	//Codon{T, A, A}: a.*,
-	//Codon{T, A, G}: a.*,
 
 	Codon{C, A, T}: a.H,
 	Codon{C, A, C}: a.H,
@@ -77,7 +84,6 @@ var CodonToAminoAcidTable = map[Codon]a.AminoAcid{
 
 	Codon{T, G, T}: a.C,
 	Codon{T, G, C}: a.C,
-	//Codon{T, G, A}: a.*,//stop
 	Codon{T, G, G}: a.W,
 
 	Codon{C, G, T}: a.R,
@@ -129,4 +135,37 @@ func GenAllCodons() chan Codon {
 		close(codonChan)
 	}()
 	return codonChan
+}
+
+func GetFinalControlLine(nas []NucleicAcid, refs []a.AminoAcid) string {
+	lenNAs := len(nas)
+	lenAAs := len(refs)
+	var control string
+	if lenNAs >= 3 && lenAAs == 1 {
+		// matched codon
+		codon := Codon{nas[0], nas[1], nas[2]}
+		allMatched := true
+		for ucodon := range GetUnambiguousCodons(codon) {
+			allMatched = allMatched && CodonToAminoAcidTable[ucodon] == refs[0]
+		}
+		if allMatched {
+			control = ":::"
+		} else {
+			control = "..."
+		}
+		if lenNAs > 3 {
+			// trailing insertion gap
+			control += strings.Repeat("+", lenNAs-3)
+		}
+	} else if lenNAs > 0 && lenAAs == 1 {
+		// trailling deletion gap
+		control = strings.Repeat(".", lenNAs) + strings.Repeat("-", 3-lenNAs)
+	} else if lenNAs == 0 && lenAAs == 1 {
+		// deletion codon
+		control = "---"
+	} else { // lenAAs == 0
+		// ext-codon insertion gap
+		control = strings.Repeat("+", lenNAs)
+	}
+	return control
 }

@@ -25,11 +25,11 @@ const (
 	Y
 )
 
-var AminoAcids = []AminoAcid{
+const NumAminoAcids = 20
+
+var AminoAcids = [NumAminoAcids]AminoAcid{
 	A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y,
 }
-
-var NumAminoAcids = len(AminoAcids)
 
 var aminoAcidLookup = map[AminoAcid]string{
 	A: "A",
@@ -105,9 +105,21 @@ func ToString(aa AminoAcid) string {
 }
 
 func ReadString(aminoAcidSequence string) []AminoAcid {
-	result := make([]AminoAcid, 0)
-	for _, runeVal := range aminoAcidSequence {
-		result = append(result, aminoAcidLookupR[runeVal])
+	result := make([]AminoAcid, len(aminoAcidSequence))
+	for idx, runeVal := range aminoAcidSequence {
+		aa, present := aminoAcidLookupR[runeVal]
+		if !present {
+			continue
+		}
+		result[idx] = aa
+	}
+	return result
+}
+
+func WriteString(aas []AminoAcid) string {
+	var result string
+	for _, aa := range aas {
+		result += aminoAcidLookup[aa]
 	}
 	return result
 }

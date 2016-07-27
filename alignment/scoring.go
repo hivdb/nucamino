@@ -7,22 +7,16 @@ import (
 	n "../types/nucleic"
 )
 
-type tScoreAndPresent struct {
-	score   int
-	present bool
-}
-
 const scoreScale = 100
 
-var numN = n.NumNucleicAcids
-var mutationScoreArr []tScoreAndPresent
+const numN = n.NumNucleicAcids
+const cubeNumN = numN * numN * numN
+
+var mutationScoreArr [cubeNumN * a.NumAminoAcids]int
 
 func getMutationUniq(codon c.Codon, consensus a.AminoAcid) int {
-	numN := n.NumNucleicAcids
-	r := int(codon.Base1)
-	r = r*numN + int(codon.Base2)
-	r = r*numN + int(codon.Base3)
-	r += numN * numN * numN * int(consensus)
+	r := (int(codon.Base1)*numN+int(codon.Base2))*numN +
+		int(codon.Base3) + cubeNumN*int(consensus)
 	return r
 }
 
@@ -33,36 +27,39 @@ func CalcGapScore(
 	return (-gapOpenPenalty - gapLength*gapExtensionPenalty) * scoreScale
 }
 
-func CalcMutationScore(
+func (self *Alignment) CalcMutationScore(
 	base1 n.NucleicAcid, base2 n.NucleicAcid,
 	base3 n.NucleicAcid, consensus a.AminoAcid) int {
 	codon := c.Codon{base1, base2, base3}
 	mutUniq := getMutationUniq(codon, consensus)
-	sap := mutationScoreArr[mutUniq]
-	if sap.present {
-		return sap.score
+	score := mutationScoreArr[mutUniq]
+	if score != negInf {
+		return score
 	}
 	scores := 0
 	numAAs := 0
 	aa, present := c.CodonToAminoAcid(codon)
 	if present {
-		scores += LookupBlosum62(aa, consensus)
-		numAAs++
+		score = int(LookupBlosum62(aa, consensus)) * scoreScale
+	} else if isStopCodon := c.StopCodons[codon]; isStopCodon {
+		score = -self.stopCodonPenalty * scoreScale
 	} else {
 		for unambiguousCodon := range c.GetUnambiguousCodons(codon) {
 			aa, _ = c.CodonToAminoAcid(unambiguousCodon)
-			scores += LookupBlosum62(aa, consensus)
+			scores += int(LookupBlosum62(aa, consensus))
 			numAAs++
 		}
+		score = scores * scoreScale / numAAs
 	}
-	score := scores * scoreScale / numAAs
-	mutationScoreArr[mutUniq] = tScoreAndPresent{score, true}
+	mutationScoreArr[mutUniq] = score
 	return score
 }
 
 func init() {
-	arrLen := numN * numN * numN * a.NumAminoAcids
-	mutationScoreArr = make([]tScoreAndPresent, arrLen)
+	arrLen := cubeNumN * a.NumAminoAcids
+	for i := 0; i < arrLen; i++ {
+		mutationScoreArr[i] = negInf
+	}
 	/*for codon := range c.GenAllCodons() {
 		for _, cons := range a.AminoAcids {
 			calcMutationScore(codon, cons)

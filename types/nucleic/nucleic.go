@@ -20,11 +20,11 @@ const (
 	N
 )
 
-var NucleicAcids = []NucleicAcid{
+const NumNucleicAcids = 15
+
+var NucleicAcids = [NumNucleicAcids]NucleicAcid{
 	A, C, G, T, W, S, M, K, R, Y, B, D, H, V, N,
 }
-
-var NumNucleicAcids = len(NucleicAcids)
 
 var nucleicAcidLookup = map[NucleicAcid]string{
 	A: "A",
@@ -85,9 +85,21 @@ func ToString(na NucleicAcid) string {
 }
 
 func ReadString(nucleicAcidSequence string) []NucleicAcid {
-	result := make([]NucleicAcid, 0)
-	for _, runeVal := range nucleicAcidSequence {
-		result = append(result, nucleicAcidLookupR[runeVal])
+	result := make([]NucleicAcid, len(nucleicAcidSequence))
+	for idx, runeVal := range nucleicAcidSequence {
+		na, present := nucleicAcidLookupR[runeVal]
+		if !present {
+			na = N
+		}
+		result[idx] = na
+	}
+	return result
+}
+
+func WriteString(nas []NucleicAcid) string {
+	var result string
+	for _, na := range nas {
+		result += nucleicAcidLookup[na]
 	}
 	return result
 }

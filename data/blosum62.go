@@ -2,7 +2,7 @@ package data
 
 import . "../types/amino"
 
-var blosum62 = map[AminoAcid]map[AminoAcid]int{
+var blosum62 = map[AminoAcid]map[AminoAcid]int8{
 	A: {
 		A: 4,
 		R: -1,
@@ -445,6 +445,6 @@ var blosum62 = map[AminoAcid]map[AminoAcid]int{
 	},
 }
 
-func LookupBlosum62(aa1 AminoAcid, aa2 AminoAcid) int {
+func LookupBlosum62(aa1 AminoAcid, aa2 AminoAcid) int8 {
 	return blosum62[aa1][aa2]
 }
