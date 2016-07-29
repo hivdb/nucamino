@@ -9,60 +9,48 @@ import (
 
 const scoreScale = 100
 
-const numN = n.NumNucleicAcids
-const cubeNumN = numN * numN * numN
+const numN = uint8(n.NumNucleicAcids)
 
-var mutationScoreArr [cubeNumN * a.NumAminoAcids]int
+var mutationScoreMatrix = [a.NumAminoAcids][numN][numN][numN]int{}
 
-func getMutationUniq(codon c.Codon, consensus a.AminoAcid) int {
-	r := (int(codon.Base1)*numN+int(codon.Base2))*numN +
-		int(codon.Base3) + cubeNumN*int(consensus)
-	return r
-}
-
-func CalcGapScore(
-	gapLength int,
-	gapOpenPenalty int,
-	gapExtensionPenalty int) int {
-	return (-gapOpenPenalty - gapLength*gapExtensionPenalty) * scoreScale
-}
-
+// TODO: extend this to support position
 func (self *Alignment) CalcMutationScore(
 	base1 n.NucleicAcid, base2 n.NucleicAcid,
 	base3 n.NucleicAcid, consensus a.AminoAcid) int {
 	codon := c.Codon{base1, base2, base3}
-	mutUniq := getMutationUniq(codon, consensus)
-	score := mutationScoreArr[mutUniq]
+	score := mutationScoreMatrix[consensus][codon.Base1][codon.Base2][codon.Base3]
 	if score != negInf {
 		return score
 	}
-	scores := 0
-	numAAs := 0
-	aa, present := c.CodonToAminoAcid(codon)
-	if present {
-		score = int(LookupBlosum62(aa, consensus)) * scoreScale
-	} else if isStopCodon := c.StopCodons[codon]; isStopCodon {
-		score = -self.stopCodonPenalty * scoreScale
-	} else {
-		for unambiguousCodon := range c.GetUnambiguousCodons(codon) {
-			aa, _ = c.CodonToAminoAcid(unambiguousCodon)
+	if codon.IsAmbiguous() {
+		// this loop also works with unambiguous codon,
+		// but it slows thing down a little bit
+		scores := 0
+		numAAs := 0
+		for _, aa := range codon.ToAminoAcids() {
 			scores += int(LookupBlosum62(aa, consensus))
 			numAAs++
 		}
 		score = scores * scoreScale / numAAs
+	} else if isStopCodon := c.StopCodons[codon]; isStopCodon {
+		score = -self.stopCodonPenalty * scoreScale
+	} else {
+		// unambiguous codon, can use unsafe function safely
+		aa := codon.ToAminoAcidUnsafe()
+		score = int(LookupBlosum62(aa, consensus)) * scoreScale
 	}
-	mutationScoreArr[mutUniq] = score
+	mutationScoreMatrix[consensus][codon.Base1][codon.Base2][codon.Base3] = score
 	return score
 }
 
 func init() {
-	arrLen := cubeNumN * a.NumAminoAcids
-	for i := 0; i < arrLen; i++ {
-		mutationScoreArr[i] = negInf
-	}
-	/*for codon := range c.GenAllCodons() {
-		for _, cons := range a.AminoAcids {
-			calcMutationScore(codon, cons)
+	for i, matrix3d := range mutationScoreMatrix {
+		for x, matrix2d := range matrix3d {
+			for y, matrix1d := range matrix2d {
+				for z := range matrix1d {
+					mutationScoreMatrix[i][x][y][z] = negInf
+				}
+			}
 		}
-	}*/
+	}
 }

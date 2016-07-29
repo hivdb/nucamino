@@ -80,8 +80,12 @@ var ambiguousNucleicAcids = map[NucleicAcid][]NucleicAcid{
 	N: {A, C, G, T},
 }
 
-func ToString(na NucleicAcid) string {
+func (na NucleicAcid) ToString() string {
 	return nucleicAcidLookup[na]
+}
+
+func (self NucleicAcid) IsAmbiguous() bool {
+	return self > T
 }
 
 func ReadString(nucleicAcidSequence string) []NucleicAcid {

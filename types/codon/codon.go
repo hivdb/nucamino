@@ -102,39 +102,124 @@ var CodonToAminoAcidTable = map[Codon]a.AminoAcid{
 	Codon{G, G, G}: a.G,
 }
 
-func CodonToAminoAcid(codon Codon) (a.AminoAcid, bool) {
-	aa, present := CodonToAminoAcidTable[codon]
-	return aa, present
+var aminoAcidSearchMatrix = [a.NumAminoAcids][3][NumNucleicAcids][]Codon{}
+
+func init() {
+	for codon, aa := range CodonToAminoAcidTable {
+		for idx, na := range codon.GetNucleicAcids() {
+			codons := aminoAcidSearchMatrix[aa][idx][na]
+			if codons == nil {
+				codons = make([]Codon, 0, 4)
+			}
+			codons = append(codons, codon)
+			aminoAcidSearchMatrix[aa][idx][na] = codons
+		}
+	}
 }
 
-func GetUnambiguousCodons(codon Codon) chan Codon {
-	codonChan := make(chan Codon)
-	go func() {
-		for _, na1 := range GetUnambiguousNucleicAcids(codon.Base1) {
-			for _, na2 := range GetUnambiguousNucleicAcids(codon.Base2) {
-				for _, na3 := range GetUnambiguousNucleicAcids(codon.Base3) {
-					codonChan <- Codon{na1, na2, na3}
+func hasCommonCodon(codons0 []Codon, codons1 []Codon) bool {
+	for _, codon0 := range codons0 {
+		for _, codon1 := range codons1 {
+			if codon0 == codon1 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+var twoNAsCases = [3][2]int{
+	[2]int{0, 1},
+	[2]int{1, 2},
+	[2]int{0, 2},
+}
+
+func FindBestMatch(nas []NucleicAcid, aa a.AminoAcid) Codon {
+	var codon, partialCodon *Codon
+	lenNAs := len(nas)
+	if lenNAs == 3 {
+		codon = &Codon{nas[0], nas[1], nas[2]}
+	} else if lenNAs == 2 {
+		partialCodon = &Codon{nas[0], nas[1], N} // no match fallback
+		for _, p := range twoNAsCases {
+			codons0 := aminoAcidSearchMatrix[aa][p[0]][nas[0]]
+			codons1 := aminoAcidSearchMatrix[aa][p[1]][nas[1]]
+			pNAs := [3]NucleicAcid{N, N, N}
+			pNAs[p[0]] = nas[0]
+			pNAs[p[1]] = nas[1]
+			pCodon := &Codon{pNAs[0], pNAs[1], pNAs[2]}
+			if hasCommonCodon(codons0, codons1) {
+				codon = pCodon
+				break
+			} else if len(codons0) > 0 || len(codons1) > 0 {
+				partialCodon = pCodon
+			}
+		}
+	} else if lenNAs == 1 {
+		partialCodon = &Codon{nas[0], N, N} // no match fallback
+		for i := 0; i < 3; i++ {
+			codons := aminoAcidSearchMatrix[aa][i][nas[0]]
+			if len(codons) > 0 {
+				pNAs := [3]NucleicAcid{N, N, N}
+				pNAs[i] = nas[0]
+				codon = &Codon{pNAs[0], pNAs[1], pNAs[2]}
+				break
+			}
+		}
+	}
+	if codon == nil {
+		codon = partialCodon
+	}
+	return *codon
+}
+
+func (self *Codon) GetNucleicAcids() [3]NucleicAcid {
+	return [3]NucleicAcid{
+		self.Base1,
+		self.Base2,
+		self.Base3,
+	}
+}
+
+func (self *Codon) ToAminoAcids() []a.AminoAcid {
+	aas := make([]a.AminoAcid, 0, 1)
+
+UnambiguousCodonsLoop:
+	for _, ucodon := range GetUnambiguousCodons(*self) {
+		aa := ucodon.ToAminoAcidUnsafe()
+		if len(aas) > 0 {
+			for _, knownAA := range aas {
+				if knownAA == aa {
+					continue UnambiguousCodonsLoop
 				}
 			}
 		}
-		close(codonChan)
-	}()
-	return codonChan
+		aas = append(aas, aa)
+	}
+	return aas
 }
 
-func GenAllCodons() chan Codon {
-	codonChan := make(chan Codon)
-	go func() {
-		for _, na1 := range NucleicAcids {
-			for _, na2 := range NucleicAcids {
-				for _, na3 := range NucleicAcids {
-					codonChan <- Codon{na1, na2, na3}
-				}
+func (self *Codon) IsAmbiguous() bool {
+	return self.Base1.IsAmbiguous() ||
+		self.Base2.IsAmbiguous() ||
+		self.Base3.IsAmbiguous()
+}
+
+// NOTE: This method only works if the self codon is unambiguous
+func (self *Codon) ToAminoAcidUnsafe() a.AminoAcid {
+	return CodonToAminoAcidTable[*self]
+}
+
+func GetUnambiguousCodons(codon Codon) []Codon {
+	codons := make([]Codon, 0, 2)
+	for _, na1 := range GetUnambiguousNucleicAcids(codon.Base1) {
+		for _, na2 := range GetUnambiguousNucleicAcids(codon.Base2) {
+			for _, na3 := range GetUnambiguousNucleicAcids(codon.Base3) {
+				codons = append(codons, Codon{na1, na2, na3})
 			}
 		}
-		close(codonChan)
-	}()
-	return codonChan
+	}
+	return codons
 }
 
 func GetFinalControlLine(nas []NucleicAcid, refs []a.AminoAcid) string {
@@ -145,7 +230,7 @@ func GetFinalControlLine(nas []NucleicAcid, refs []a.AminoAcid) string {
 		// matched codon
 		codon := Codon{nas[0], nas[1], nas[2]}
 		allMatched := true
-		for ucodon := range GetUnambiguousCodons(codon) {
+		for _, ucodon := range GetUnambiguousCodons(codon) {
 			allMatched = allMatched && CodonToAminoAcidTable[ucodon] == refs[0]
 		}
 		if allMatched {
@@ -168,4 +253,8 @@ func GetFinalControlLine(nas []NucleicAcid, refs []a.AminoAcid) string {
 		control = strings.Repeat("+", lenNAs)
 	}
 	return control
+}
+
+func (self *Codon) ToString() string {
+	return self.Base1.ToString() + self.Base2.ToString() + self.Base3.ToString()
 }
