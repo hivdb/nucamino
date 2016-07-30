@@ -5,6 +5,11 @@ import (
 	n "../types/nucleic"
 )
 
+const (
+	GAPINS = true
+	GAPDEL = false
+)
+
 type ScoreHandler interface {
 	GetSubstitutionScore(
 		/* refPosition */ int,
@@ -12,7 +17,6 @@ type ScoreHandler interface {
 		/* base2 */ n.NucleicAcid,
 		/* base3 */ n.NucleicAcid,
 		/* ref */ a.AminoAcid) int
-	GetInsertionScore( /* refPosition */ int) int
-	GetDeletionScore( /* refPosition */ int) int
-	GetGapOpeningScore( /* refPosition */ int) int
+	GetGapExtensionScore( /* refPosition */ int /* isInsertion */, bool) int
+	GetGapOpeningScore( /* refPosition */ int /* isINsertion */, bool) int
 }

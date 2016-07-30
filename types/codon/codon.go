@@ -135,8 +135,10 @@ var twoNAsCases = [3][2]int{
 }
 
 func FindBestMatch(nas []NucleicAcid, aa a.AminoAcid) Codon {
-	var codon, partialCodon *Codon
-	lenNAs := len(nas)
+	var (
+		codon, partialCodon *Codon
+		lenNAs              = len(nas)
+	)
 	if lenNAs == 3 {
 		codon = &Codon{nas[0], nas[1], nas[2]}
 	} else if lenNAs == 2 {
