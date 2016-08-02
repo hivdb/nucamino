@@ -20,7 +20,7 @@ const negInf = -int((^uint(0))>>1) - 1
 type HIV1BScoreHandler struct {
 	gene            Gene
 	scoreScale      int
-	blosum62Handler *b62.Blosum62ScoreHandler
+	blosum62Handler b62.Blosum62ScoreHandler
 }
 
 func (self *HIV1BScoreHandler) GetSubstitutionScore(
@@ -29,32 +29,30 @@ func (self *HIV1BScoreHandler) GetSubstitutionScore(
 	base2 n.NucleicAcid,
 	base3 n.NucleicAcid,
 	ref a.AminoAcid) int {
-	sh := self.blosum62Handler
-	score := (*sh).GetSubstitutionScore(position, base1, base2, base3, ref)
-	return score
+	return self.blosum62Handler.GetSubstitutionScore(position, base1, base2, base3, ref)
 }
 
 func (self *HIV1BScoreHandler) GetGapOpeningScore(
 	position int, isInsertion bool) int {
 	score := self.blosum62Handler.GetGapOpeningScore(position, isInsertion)
-	if self.gene == RT {
+	/*if self.gene == RT {
 		if (isInsertion && position == 69) ||
 			(!isInsertion && position >= 67 && position <= 70) {
 			score = 0 // no penalty
 		}
-	}
+	}*/
 	return score
 }
 
 func (self *HIV1BScoreHandler) GetGapExtensionScore(
 	position int, isInsertion bool) int {
 	score := self.blosum62Handler.GetGapExtensionScore(position, isInsertion)
-	if self.gene == RT {
+	/*if self.gene == RT {
 		if (isInsertion && position == 69) ||
 			(!isInsertion && position >= 67 && position <= 70) {
 			score = 0 // no penalty
 		}
-	}
+	}*/
 	return score
 }
 
@@ -76,6 +74,6 @@ func New(
 	return &HIV1BScoreHandler{
 		gene:            gene,
 		scoreScale:      scoreScale,
-		blosum62Handler: b62handler,
+		blosum62Handler: *b62handler,
 	}
 }

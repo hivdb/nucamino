@@ -62,8 +62,12 @@ func MakeMutation(position int, nas []n.NucleicAcid, ref a.AminoAcid) *Mutation 
 		// maybe substitution
 		codon := c.Codon{nas[0], nas[1], nas[2]}
 		allMatched := true
-		for _, ucodon := range c.GetUnambiguousCodons(codon) {
-			allMatched = allMatched && c.CodonToAminoAcidTable[ucodon] == ref
+		for _, ucodon := range codon.GetUnambiguousCodons() {
+			if ucodon.IsStopCodon() {
+				allMatched = false
+			} else {
+				allMatched = allMatched && ucodon.ToAminoAcidUnsafe() == ref
+			}
 		}
 		if allMatched {
 			control = ":::"
@@ -136,12 +140,12 @@ func (self *Mutation) ToString() string {
 		r += "-"
 	} else {
 		nas += ":" + self.codon.ToString()
-		r += a.WriteString(self.codon.ToAminoAcids())
+		r += self.codon.ToAminoAcidsText()
 		if self.isInsertion {
 			r += "_"
 			nas += "_"
 			for _, insCodon := range self.insertedCodons {
-				insertedAAs := a.WriteString(insCodon.ToAminoAcids())
+				insertedAAs := insCodon.ToAminoAcidsText()
 				if len(insertedAAs) > 1 {
 					r += "[" + insertedAAs + "]"
 				} else {

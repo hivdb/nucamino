@@ -1,5 +1,10 @@
 package nucleic
 
+import (
+	"../../utils"
+	"strings"
+)
+
 type NucleicAcid int
 
 const (
@@ -89,6 +94,8 @@ func (self NucleicAcid) IsAmbiguous() bool {
 }
 
 func ReadString(nucleicAcidSequence string) []NucleicAcid {
+	nucleicAcidSequence = strings.ToUpper(
+		utils.StripWhiteSpace(nucleicAcidSequence))
 	result := make([]NucleicAcid, len(nucleicAcidSequence))
 	for idx, runeVal := range nucleicAcidSequence {
 		na, present := nucleicAcidLookupR[runeVal]

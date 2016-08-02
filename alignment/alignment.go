@@ -38,10 +38,20 @@ type Alignment struct {
 	aSeqLen         int
 	maxScorePosN    int
 	maxScorePosA    int
+	maxScore        int
 	scoreHandler    s.ScoreHandler
 	directionMatrix []int
-	//scoreMatrix     []int
+	scoreMatrix     []int
 	//codonInsPositions   []int
+}
+
+type AlignmentReport struct {
+	FirstAA     int
+	FirstNA     int
+	LastAA      int
+	LastNA      int
+	Mutations   []m.Mutation
+	FrameShifts []f.FrameShift
 }
 
 func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.ScoreHandler) *Alignment {
@@ -49,25 +59,28 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.Score
 	aSeqLen := len(aSeq)
 	typedPosLen := scoreTypeCount * (nSeqLen + 1) * (aSeqLen + 1)
 	//codonInsLen := (nSeqLen + 1) * (aSeqLen + 1)
-	//scoreMatrix := make([]int, typedPosLen)
+	scoreMatrix := make([]int, typedPosLen)
 	directionMatrix := make([]int, typedPosLen)
 	for i := 0; i < typedPosLen; i++ {
+		scoreMatrix[i] = negInf
 		directionMatrix[i] = -1
 	}
 	//codonInsPositions := make([]int, codonInsLen)
 	//for i := range codonInsPositions {
 	//	codonInsPositions[i] = -1
 	//}
-	return &Alignment{
+	result := &Alignment{
 		nSeq:            nSeq,
 		aSeq:            aSeq,
 		nSeqLen:         nSeqLen,
 		aSeqLen:         aSeqLen,
 		scoreHandler:    scoreHandler,
 		directionMatrix: directionMatrix,
-		//scoreMatrix:     scoreMatrix,
+		scoreMatrix:     scoreMatrix,
 		//codonInsPositions:   codonInsPositions,
 	}
+	result.calcScoreMain()
+	return result
 }
 
 func (self *Alignment) GetCalcInfo() (int, int) {
@@ -81,10 +94,10 @@ func (self *Alignment) GetCalcInfo() (int, int) {
 }
 
 func padRightSpace(str string, length int) string {
-	return str + strings.Repeat("^", (length-len(str)))
+	return str + strings.Repeat(" ", (length-len(str)))
 }
 
-func (self *Alignment) GetScorePath() {
+func (self *Alignment) GetReport() AlignmentReport {
 	//nSeqLen := self.nSeqLen
 	//aSeqLen := self.aSeqLen
 	//print("          ")
@@ -125,8 +138,24 @@ func (self *Alignment) GetScorePath() {
 		lastScoreType                    = GENERAL
 		hasUnprocessedNAs                = false
 		endMtIdx                         = self.getMatrixIndex(GENERAL, self.maxScorePosN, self.maxScorePosA)
+		prevMtIdx                        = -1
+		curMtIdx                         = endMtIdx
+		prevScore                        = endMtIdx
+		startMtIdx                       = 0
+		singleMtLen                      = (self.nSeqLen + 1) * (self.aSeqLen + 1)
 	)
-	for endMtIdx >= 0 {
+
+	for curMtIdx >= 0 && curMtIdx != prevMtIdx {
+		score := self.scoreMatrix[curMtIdx]
+		if score <= prevScore {
+			prevScore = score
+			startMtIdx = curMtIdx
+		}
+		prevMtIdx = curMtIdx
+		curMtIdx = self.directionMatrix[curMtIdx]
+	}
+
+	for endMtIdx%singleMtLen >= startMtIdx%singleMtLen {
 		//score := self.scoreMatrix[endMtIdx]
 		scoreType, posN, posA := self.getTypedPos(endMtIdx)
 		//fmt.Printf("%s (%d,%d,%d,%d,%d)\n", lastScoreType, LastPosN, posN, LastPosA, posA, score)
@@ -200,21 +229,29 @@ func (self *Alignment) GetScorePath() {
 			break
 		}
 	}
-	print(aLine, ")\n")
-	print(cLine, ")\n")
-	print(nLine, ")\n")
-	print("First AA: ", firstAA, "\n")
-	print("First NA: ", firstNA, "\n")
-	print("Last AA: ", lastAA, "\n")
-	print("Last NA: ", lastNA, "\n")
-	for _, mutation := range mutList {
-		print(mutation.ToString(), ", ")
+	//print(aLine, ")\n")
+	//print(cLine, ")\n")
+	//print(nLine, ")\n")
+	//print("First AA: ", firstAA, "\n")
+	//print("First NA: ", firstNA, "\n")
+	//print("Last AA: ", lastAA, "\n")
+	//print("Last NA: ", lastNA, "\n")
+	//for _, mutation := range mutList {
+	//	print(mutation.ToString(), ", ")
+	//}
+	//print("\n")
+	//for _, frameshift := range fsList {
+	//	print(frameshift.ToString(), ", ")
+	//}
+	//print("\n")
+	return AlignmentReport{
+		FirstAA:     firstAA,
+		FirstNA:     firstNA,
+		LastAA:      lastAA,
+		LastNA:      lastNA,
+		Mutations:   mutList,
+		FrameShifts: fsList,
 	}
-	print("\n")
-	for _, frameshift := range fsList {
-		print(frameshift.ToString(), ", ")
-	}
-	print("\n")
 }
 
 func (self *Alignment) getMatrixIndex(scoreType tScoreType, posN int, posA int) int {
@@ -231,7 +268,7 @@ func (self *Alignment) getTypedPos(matrixIndex int) (scoreType tScoreType, posN 
 
 func (self *Alignment) setCachedScore(scoreType tScoreType, posN int, posA int, score int, prevMatrixIdx int) {
 	mtIdx := self.getMatrixIndex(scoreType, posN, posA)
-	//self.scoreMatrix[mtIdx] = score
+	self.scoreMatrix[mtIdx] = score
 	self.directionMatrix[mtIdx] = prevMatrixIdx
 }
 
@@ -500,24 +537,36 @@ func (self *Alignment) calcScore(
 	return score, prevMatrixIdx
 }
 
-func (self *Alignment) CalcScore() int {
-	maxScore := negInf
-	maxScorePosN := 0
-	maxScorePosA := 0
-	gScores := make([]int, self.nSeqLen+1)
-	dScores := make([]int, self.nSeqLen+1)
-	gScoresCur := make([]int, self.nSeqLen+1)
-	dScoresCur := make([]int, self.nSeqLen+1)
+func (self *Alignment) calcScoreMain() {
+	var (
+		maxScore     = negInf
+		maxScorePosN = 0
+		maxScorePosA = 0
+		gScores      = make([]int, self.nSeqLen+1)
+		dScores      = make([]int, self.nSeqLen+1)
+		gScoresCur   = make([]int, self.nSeqLen+1)
+		dScoresCur   = make([]int, self.nSeqLen+1)
 
-	for j := range self.aSeq {
-		gScore10 := negInf
-		iScore10 := negInf
-		for i := range self.nSeq {
+		gScore00, gScore10 int
+		gScore01, gScore11 int
+		gScore21, gScore31 int
 
-			gScore01 := gScores[i]
-			dScore01 := dScores[i]
-			gScore11, gScore21, gScore31 := negInf, negInf, negInf
-			dScore11, dScore21 := negInf, negInf
+		iScore00, iScore10 int
+
+		dScore00, dScore01 int
+		dScore11, dScore21 int
+		prevMtIdx          int
+	)
+
+	for j := 0; j <= self.aSeqLen; j++ {
+		gScore10 = negInf
+		iScore10 = negInf
+		for i := 0; i <= self.nSeqLen; i++ {
+
+			gScore01 = gScores[i]
+			dScore01 = dScores[i]
+			gScore11, gScore21, gScore31 = negInf, negInf, negInf
+			dScore11, dScore21 = negInf, negInf
 			if i > 0 {
 				gScore11 = gScores[i-1]
 				dScore11 = dScores[i-1]
@@ -529,27 +578,27 @@ func (self *Alignment) CalcScore() int {
 			if i > 2 {
 				gScore31 = gScores[i-3]
 			}
-			iScore00, iPrevMtIdx := self.calcExtInsScore(
+			iScore00, prevMtIdx = self.calcExtInsScore(
 				i, j, gScore10, iScore10)
 
-			self.setCachedScore(INS, i, j, iScore00, iPrevMtIdx)
+			self.setCachedScore(INS, i, j, iScore00, prevMtIdx)
 
-			dScore00, dPrevMtIdx := self.calcDelScore(
+			dScore00, prevMtIdx = self.calcDelScore(
 				i, j,
 				gScore01, gScore11, gScore21,
 				dScore01, dScore11)
 
 			dScoresCur[i] = dScore00
-			self.setCachedScore(DEL, i, j, dScore00, dPrevMtIdx)
+			self.setCachedScore(DEL, i, j, dScore00, prevMtIdx)
 
-			gScore00, gPrevMtIdx := self.calcScore(
+			gScore00, prevMtIdx = self.calcScore(
 				i, j,
 				gScore11, gScore21, gScore31,
 				iScore00,
 				dScore00, dScore11, dScore21)
 
 			gScoresCur[i] = gScore00
-			self.setCachedScore(GENERAL, i, j, gScore00, gPrevMtIdx)
+			self.setCachedScore(GENERAL, i, j, gScore00, prevMtIdx)
 
 			if gScore00 >= maxScore {
 				maxScore = gScore00
@@ -567,6 +616,5 @@ func (self *Alignment) CalcScore() int {
 	}
 	self.maxScorePosN = maxScorePosN
 	self.maxScorePosA = maxScorePosA
-	print("Max Score: ", maxScore, "\n")
-	return maxScore
+	self.maxScore = maxScore
 }

@@ -12,7 +12,7 @@ type Codon struct {
 	Base3 NucleicAcid
 }
 
-var StopCodons = map[Codon]bool{
+var stopCodons = map[Codon]bool{
 	Codon{T, A, A}: true,
 	Codon{T, A, G}: true,
 	Codon{T, G, A}: true,
@@ -175,6 +175,10 @@ func FindBestMatch(nas []NucleicAcid, aa a.AminoAcid) Codon {
 	return *codon
 }
 
+func (self *Codon) IsStopCodon() bool {
+	return stopCodons[*self]
+}
+
 func (self *Codon) GetNucleicAcids() [3]NucleicAcid {
 	return [3]NucleicAcid{
 		self.Base1,
@@ -183,11 +187,16 @@ func (self *Codon) GetNucleicAcids() [3]NucleicAcid {
 	}
 }
 
-func (self *Codon) ToAminoAcids() []a.AminoAcid {
+func (self *Codon) ToAminoAcidsText() string {
 	aas := make([]a.AminoAcid, 0, 1)
+	hasStopCodon := false
 
 UnambiguousCodonsLoop:
-	for _, ucodon := range GetUnambiguousCodons(*self) {
+	for _, ucodon := range self.GetUnambiguousCodons() {
+		if ucodon.IsStopCodon() {
+			hasStopCodon = true
+			continue
+		}
 		aa := ucodon.ToAminoAcidUnsafe()
 		if len(aas) > 0 {
 			for _, knownAA := range aas {
@@ -198,7 +207,11 @@ UnambiguousCodonsLoop:
 		}
 		aas = append(aas, aa)
 	}
-	return aas
+	text := a.WriteString(aas)
+	if hasStopCodon {
+		text += "*"
+	}
+	return text
 }
 
 func (self *Codon) IsAmbiguous() bool {
@@ -207,16 +220,16 @@ func (self *Codon) IsAmbiguous() bool {
 		self.Base3.IsAmbiguous()
 }
 
-// NOTE: This method only works if the self codon is unambiguous
+// NOTE: This method doesn't check if self is stop codon or ambiguous
 func (self *Codon) ToAminoAcidUnsafe() a.AminoAcid {
 	return CodonToAminoAcidTable[*self]
 }
 
-func GetUnambiguousCodons(codon Codon) []Codon {
+func (self *Codon) GetUnambiguousCodons() []Codon {
 	codons := make([]Codon, 0, 2)
-	for _, na1 := range GetUnambiguousNucleicAcids(codon.Base1) {
-		for _, na2 := range GetUnambiguousNucleicAcids(codon.Base2) {
-			for _, na3 := range GetUnambiguousNucleicAcids(codon.Base3) {
+	for _, na1 := range GetUnambiguousNucleicAcids(self.Base1) {
+		for _, na2 := range GetUnambiguousNucleicAcids(self.Base2) {
+			for _, na3 := range GetUnambiguousNucleicAcids(self.Base3) {
 				codons = append(codons, Codon{na1, na2, na3})
 			}
 		}
@@ -232,7 +245,7 @@ func GetFinalControlLine(nas []NucleicAcid, refs []a.AminoAcid) string {
 		// matched codon
 		codon := Codon{nas[0], nas[1], nas[2]}
 		allMatched := true
-		for _, ucodon := range GetUnambiguousCodons(codon) {
+		for _, ucodon := range codon.GetUnambiguousCodons() {
 			allMatched = allMatched && CodonToAminoAcidTable[ucodon] == refs[0]
 		}
 		if allMatched {

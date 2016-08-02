@@ -34,15 +34,18 @@ func (self *Blosum62ScoreHandler) GetSubstitutionScore(
 		// but it slows thing down a little bit
 		scores := 0
 		numAAs := 0
-		for _, aa := range codon.ToAminoAcids() {
-			scores += int(d.LookupBlosum62(aa, ref))
+		for _, ucodon := range codon.GetUnambiguousCodons() {
+			if ucodon.IsStopCodon() {
+				scores -= self.stopCodonPenalty
+			}
+			scores += int(d.LookupBlosum62(ucodon.ToAminoAcidUnsafe(), ref)) * self.scoreScale
 			numAAs++
 		}
-		score = scores * self.scoreScale / numAAs
+		score = scores / numAAs
 		if score > 0 {
 			//print(codon.ToString(), " ", score, "\n")
 		}
-	} else if isStopCodon := c.StopCodons[codon]; isStopCodon {
+	} else if codon.IsStopCodon() {
 		score = -self.stopCodonPenalty
 	} else {
 		// unambiguous codon, can use unsafe function safely

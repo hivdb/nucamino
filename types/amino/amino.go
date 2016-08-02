@@ -1,5 +1,10 @@
 package amino
 
+import (
+	"../../utils"
+	"strings"
+)
+
 type AminoAcid int
 
 const (
@@ -105,6 +110,8 @@ func ToString(aa AminoAcid) string {
 }
 
 func ReadString(aminoAcidSequence string) []AminoAcid {
+	aminoAcidSequence = strings.ToUpper(
+		utils.StripWhiteSpace(aminoAcidSequence))
 	result := make([]AminoAcid, len(aminoAcidSequence))
 	for idx, runeVal := range aminoAcidSequence {
 		aa, present := aminoAcidLookupR[runeVal]
