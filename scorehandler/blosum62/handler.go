@@ -18,16 +18,23 @@ type Blosum62ScoreHandler struct {
 	scoreMatrix         [a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int
 }
 
-func (self *Blosum62ScoreHandler) GetSubstitutionScore(
-	position int,
+func (self *Blosum62ScoreHandler) GetCachedSubstitutionScore(
 	base1 n.NucleicAcid,
 	base2 n.NucleicAcid,
 	base3 n.NucleicAcid,
-	ref a.AminoAcid) int {
-	score := self.scoreMatrix[ref][base1][base2][base3]
-	if score != negInf {
-		return score
+	ref a.AminoAcid) (int, bool) {
+	score, present := self.scoreMatrix[ref][base1][base2][base3], true
+	if score == negInf {
+		present = false
 	}
+	return score, present
+}
+
+func (self *Blosum62ScoreHandler) GetSubstitutionScoreNoCache(
+	base1 n.NucleicAcid,
+	base2 n.NucleicAcid,
+	base3 n.NucleicAcid,
+	ref a.AminoAcid) (score int) {
 	codon := c.Codon{base1, base2, base3}
 	if codon.IsAmbiguous() {
 		// this loop also works with unambiguous codon,
@@ -53,17 +60,35 @@ func (self *Blosum62ScoreHandler) GetSubstitutionScore(
 		score = int(d.LookupBlosum62(aa, ref)) * self.scoreScale
 	}
 	self.scoreMatrix[ref][base1][base2][base3] = score
-	return score
+	return
 }
 
-func (self *Blosum62ScoreHandler) GetGapOpeningScore(
-	position int, isInsertion bool) int {
+func (self *Blosum62ScoreHandler) GetSubstitutionScore(
+	position int,
+	base1 n.NucleicAcid,
+	base2 n.NucleicAcid,
+	base3 n.NucleicAcid,
+	ref a.AminoAcid) int {
+	if score, present := self.GetCachedSubstitutionScore(base1, base2, base3, ref); present {
+		return score
+	}
+	return self.GetSubstitutionScoreNoCache(base1, base2, base3, ref)
+}
+
+func (self *Blosum62ScoreHandler) GetGapOpeningScore() int {
 	return -self.gapOpenPenalty
 }
 
-func (self *Blosum62ScoreHandler) GetGapExtensionScore(
-	position int, isInsertion bool) int {
+func (self *Blosum62ScoreHandler) GetGapExtensionScore() int {
 	return -self.gapExtensionPenalty
+}
+
+func (self *Blosum62ScoreHandler) IsPositionalIndelScoreSupported() bool {
+	return false
+}
+
+func (self *Blosum62ScoreHandler) GetIndelScore(position int, isInsertion bool) int {
+	return 0
 }
 
 func NewAsScoreHandler(

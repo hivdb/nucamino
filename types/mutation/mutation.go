@@ -13,17 +13,19 @@ type Mutation struct {
 	reference      a.AminoAcid
 	isInsertion    bool
 	isDeletion     bool
+	isPartial      bool
 	control        string
 	insertedCodons []c.Codon
 }
 
 func New(
 	position int, codon c.Codon,
-	reference a.AminoAcid, control string) *Mutation {
+	reference a.AminoAcid, isPartial bool, control string) *Mutation {
 	return &Mutation{
 		position:  position,
 		codon:     &codon,
 		reference: reference,
+		isPartial: isPartial,
 		control:   control,
 	}
 }
@@ -85,7 +87,7 @@ func MakeMutation(position int, nas []n.NucleicAcid, ref a.AminoAcid) *Mutation 
 			}
 			mutation = NewInsertion(position, codon, ref, insertedCodons, control)
 		} else if !allMatched {
-			mutation = New(position, codon, ref, control)
+			mutation = New(position, codon, ref, false, control)
 		}
 	} else if lenNAs > 0 {
 		// codon missed 1 or 2 NAs
@@ -97,7 +99,7 @@ func MakeMutation(position int, nas []n.NucleicAcid, ref a.AminoAcid) *Mutation 
 				control += "."
 			}
 		}
-		mutation = New(position, codon, ref, control)
+		mutation = New(position, codon, ref, true, control)
 	} else if lenNAs == 0 {
 		// deletion
 		mutation = NewDeletion(position, ref)
@@ -140,7 +142,11 @@ func (self *Mutation) ToString() string {
 		r += "-"
 	} else {
 		nas += ":" + self.codon.ToString()
-		r += self.codon.ToAminoAcidsText()
+		if self.isPartial {
+			r += "X" // mutation contains del gap doesn't get displayed
+		} else {
+			r += self.codon.ToAminoAcidsText()
+		}
 		if self.isInsertion {
 			r += "_"
 			nas += "_"

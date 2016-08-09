@@ -11,12 +11,14 @@ const (
 )
 
 type ScoreHandler interface {
+	IsPositionalIndelScoreSupported() bool
 	GetSubstitutionScore(
 		/* refPosition */ int,
 		/* base1 */ n.NucleicAcid,
 		/* base2 */ n.NucleicAcid,
 		/* base3 */ n.NucleicAcid,
 		/* ref */ a.AminoAcid) int
-	GetGapExtensionScore( /* refPosition */ int /* isInsertion */, bool) int
-	GetGapOpeningScore( /* refPosition */ int /* isINsertion */, bool) int
+	GetGapExtensionScore() int
+	GetGapOpeningScore() int
+	GetIndelScore( /* refPosition */ int /* isInsertion */, bool) int
 }

@@ -6,8 +6,8 @@ import (
 	f "../types/frameshift"
 	m "../types/mutation"
 	n "../types/nucleic"
-	//"fmt"
 	"strings"
+	//"fmt"
 )
 
 type tScoreType int
@@ -32,16 +32,18 @@ func (self tScoreType) ToString() string {
 }
 
 type Alignment struct {
-	nSeq            []n.NucleicAcid
-	aSeq            []a.AminoAcid
-	nSeqLen         int
-	aSeqLen         int
-	maxScorePosN    int
-	maxScorePosA    int
-	maxScore        int
-	scoreHandler    s.ScoreHandler
-	directionMatrix []int
-	scoreMatrix     []int
+	nSeq                   []n.NucleicAcid
+	aSeq                   []a.AminoAcid
+	nSeqLen                int
+	aSeqLen                int
+	maxScorePosN           int
+	maxScorePosA           int
+	maxScore               int
+	scoreHandler           s.ScoreHandler
+	scoreMatrix            []int
+	q                      int
+	r                      int
+	supportPositionalIndel bool
 	//codonInsPositions   []int
 }
 
@@ -57,26 +59,23 @@ type AlignmentReport struct {
 func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.ScoreHandler) *Alignment {
 	nSeqLen := len(nSeq)
 	aSeqLen := len(aSeq)
-	typedPosLen := scoreTypeCount * (nSeqLen + 1) * (aSeqLen + 1)
+	typedPosLen := scoreTypeCount * (nSeqLen + 1) * (aSeqLen + 1) * 2
 	//codonInsLen := (nSeqLen + 1) * (aSeqLen + 1)
 	scoreMatrix := make([]int, typedPosLen)
-	directionMatrix := make([]int, typedPosLen)
-	for i := 0; i < typedPosLen; i++ {
-		scoreMatrix[i] = negInf
-		directionMatrix[i] = -1
-	}
 	//codonInsPositions := make([]int, codonInsLen)
 	//for i := range codonInsPositions {
 	//	codonInsPositions[i] = -1
 	//}
 	result := &Alignment{
-		nSeq:            nSeq,
-		aSeq:            aSeq,
-		nSeqLen:         nSeqLen,
-		aSeqLen:         aSeqLen,
-		scoreHandler:    scoreHandler,
-		directionMatrix: directionMatrix,
-		scoreMatrix:     scoreMatrix,
+		nSeq:         nSeq,
+		aSeq:         aSeq,
+		nSeqLen:      nSeqLen,
+		aSeqLen:      aSeqLen,
+		scoreHandler: scoreHandler,
+		scoreMatrix:  scoreMatrix,
+		q:            scoreHandler.GetGapOpeningScore(),
+		r:            scoreHandler.GetGapExtensionScore(),
+		supportPositionalIndel: scoreHandler.IsPositionalIndelScoreSupported(),
 		//codonInsPositions:   codonInsPositions,
 	}
 	result.calcScoreMain()
@@ -85,12 +84,16 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.Score
 
 func (self *Alignment) GetCalcInfo() (int, int) {
 	counter := 0
-	for _, prevIdx := range self.directionMatrix {
-		if prevIdx != -1 {
+	for idx, mtIdx := range self.scoreMatrix {
+		if idx%2 == 0 {
+			// score
+			continue
+		}
+		if mtIdx != -1 {
 			counter++
 		}
 	}
-	return counter, len(self.directionMatrix)
+	return counter, len(self.scoreMatrix) / 2
 }
 
 func padRightSpace(str string, length int) string {
@@ -142,7 +145,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 		curMtIdx                         = endMtIdx
 		prevScore                        = endMtIdx
 		startMtIdx                       = 0
-		singleMtLen                      = (self.nSeqLen + 1) * (self.aSeqLen + 1)
+		singleMtLen                      = (self.nSeqLen + 1) * (self.aSeqLen + 1) * 2
 	)
 
 	for curMtIdx >= 0 && curMtIdx != prevMtIdx {
@@ -152,7 +155,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 			startMtIdx = curMtIdx
 		}
 		prevMtIdx = curMtIdx
-		curMtIdx = self.directionMatrix[curMtIdx]
+		curMtIdx = self.scoreMatrix[curMtIdx+1]
 	}
 
 	for endMtIdx%singleMtLen >= startMtIdx%singleMtLen {
@@ -183,8 +186,9 @@ func (self *Alignment) GetReport() AlignmentReport {
 					fsList = append(fsList, *frameshift)
 				}
 			}
-			if LastPosA > posA && mutation == nil && frameshift == nil {
-				partialNLine += n.WriteString(self.nSeq[posN:LastPosN])
+			/* those are only for generate three lines */
+			if LastPosA > posA && LastPosN-posN > 2 && mutation == nil {
+				partialNLine += n.WriteString(self.nSeq[posN : posN+3])
 				partialALine += padRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
 				partialCLine += ":::"
 			} else {
@@ -205,19 +209,20 @@ func (self *Alignment) GetReport() AlignmentReport {
 						}
 					}
 				}
-				if frameshift != nil && frameshift.IsInsertion() {
-					partialNLine += n.WriteString(frameshift.GetNucleicAcids())
-					partialALine += strings.Repeat(" ", frameshift.GetGapLength())
-					partialCLine += strings.Repeat("+", frameshift.GetGapLength())
-				}
 			}
+			if frameshift != nil && frameshift.IsInsertion() {
+				partialNLine += n.WriteString(frameshift.GetNucleicAcids())
+				partialALine += strings.Repeat(" ", frameshift.GetGapLength())
+				partialCLine += strings.Repeat("+", frameshift.GetGapLength())
+			}
+			/* end */
 
 			nLine = partialNLine + nLine
 			aLine = partialALine + aLine
 			cLine = partialCLine + cLine
 		}
 		//control = self.controlMatrix[endMtIdx]
-		endMtIdx = self.directionMatrix[endMtIdx]
+		endMtIdx = self.scoreMatrix[endMtIdx+1]
 		if lastScoreType == INS {
 			hasUnprocessedNAs = true
 		} else if !hasUnprocessedNAs {
@@ -229,21 +234,22 @@ func (self *Alignment) GetReport() AlignmentReport {
 			break
 		}
 	}
-	//print(aLine, ")\n")
-	//print(cLine, ")\n")
-	//print(nLine, ")\n")
-	//print("First AA: ", firstAA, "\n")
-	//print("First NA: ", firstNA, "\n")
-	//print("Last AA: ", lastAA, "\n")
-	//print("Last NA: ", lastNA, "\n")
-	//for _, mutation := range mutList {
-	//	print(mutation.ToString(), ", ")
-	//}
-	//print("\n")
-	//for _, frameshift := range fsList {
-	//	print(frameshift.ToString(), ", ")
-	//}
-	//print("\n")
+	print(aLine, ")\n")
+	print(cLine, ")\n")
+	print(nLine, ")\n")
+	print("First AA: ", firstAA, "\n")
+	print("First NA: ", firstNA, "\n")
+	print("Last AA: ", lastAA, "\n")
+	print("Last NA: ", lastNA, "\n")
+	for _, mutation := range mutList {
+		print(mutation.ToString(), ", ")
+	}
+	print("\n")
+	for _, frameshift := range fsList {
+		print(frameshift.ToString(), ", ")
+	}
+	print("\n")
+	print("Total Score: ", self.maxScore, "\n")
 	return AlignmentReport{
 		FirstAA:     firstAA,
 		FirstNA:     firstNA,
@@ -255,10 +261,11 @@ func (self *Alignment) GetReport() AlignmentReport {
 }
 
 func (self *Alignment) getMatrixIndex(scoreType tScoreType, posN int, posA int) int {
-	return (self.aSeqLen+1)*(posN+int(scoreType)*(self.nSeqLen+1)) + posA
+	return 2 * ((self.aSeqLen+1)*(posN+int(scoreType)*(self.nSeqLen+1)) + posA)
 }
 
 func (self *Alignment) getTypedPos(matrixIndex int) (scoreType tScoreType, posN int, posA int) {
+	matrixIndex /= 2
 	posA = matrixIndex % (self.aSeqLen + 1)
 	nTotal := matrixIndex / (self.aSeqLen + 1)
 	posN = nTotal % (self.nSeqLen + 1)
@@ -269,7 +276,7 @@ func (self *Alignment) getTypedPos(matrixIndex int) (scoreType tScoreType, posN 
 func (self *Alignment) setCachedScore(scoreType tScoreType, posN int, posA int, score int, prevMatrixIdx int) {
 	mtIdx := self.getMatrixIndex(scoreType, posN, posA)
 	self.scoreMatrix[mtIdx] = score
-	self.directionMatrix[mtIdx] = prevMatrixIdx
+	self.scoreMatrix[mtIdx+1] = prevMatrixIdx
 }
 
 func (self *Alignment) getNA(nPos int) n.NucleicAcid {
@@ -336,13 +343,14 @@ func (self *Alignment) getAA(aPos int) a.AminoAcid {
 
 func (self *Alignment) calcExtInsScore(
 	posN int, posA int,
+	gScore30 int, iScore30 int,
 	gScore10 int, iScore10 int) (int, int) {
 	var (
-		prevMatrixIdx int
-		score         = negInf
-		sh            = self.scoreHandler
-		q             = sh.GetGapOpeningScore(posA, s.GAPINS)
-		r             = sh.GetGapExtensionScore(posA, s.GAPINS)
+		cand, prevMatrixIdx int
+		score               = negInf
+		sh                  = self.scoreHandler
+		q                   = self.q
+		r                   = self.r
 	)
 	//var control string
 	if posN == 0 && posA > 0 {
@@ -353,14 +361,21 @@ func (self *Alignment) calcExtInsScore(
 		//gapPenalty2 := 0
 		//if pos.a > 0 && pos.a < self.aSeqLen {
 		//}
-		var (
-			cand1 = iScore10 + r
-			cand2 = gScore10 + q + r
-		)
-		if cand1 >= cand2 {
-			score, prevMatrixIdx /*, control*/ = cand1, self.getMatrixIndex(INS, posN-1, posA) //, "+"
-		} else {
-			score, prevMatrixIdx /*, control*/ = cand2, self.getMatrixIndex(GENERAL, posN-1, posA) //, "+"
+		score = negInf
+		if self.supportPositionalIndel && posN > 3 {
+			insScore := sh.GetIndelScore(posA, true)
+			if cand = iScore30 + r + r + r + insScore; cand > score {
+				score, prevMatrixIdx = cand, self.getMatrixIndex(INS, posN-3, posA)
+			}
+			if cand = gScore30 + q + r + r + r + insScore; cand > score {
+				score, prevMatrixIdx = cand, self.getMatrixIndex(GENERAL, posN-3, posA)
+			}
+		}
+		if cand = iScore10 + r; cand > score {
+			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(INS, posN-1, posA) //, "+"
+		}
+		if cand = gScore10 + q + r; cand > score {
+			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, posN-1, posA) //, "+"
 		}
 	}
 	return score, prevMatrixIdx
@@ -377,45 +392,48 @@ func (self *Alignment) calcDelScore(
 	)
 	//var control string
 	if posN > 0 && posA == 0 {
-		score, prevMatrixIdx = sh.GetGapOpeningScore(posA, s.GAPDEL), self.getMatrixIndex(GENERAL, 0, 0)
+		score, prevMatrixIdx = self.q, self.getMatrixIndex(GENERAL, 0, 0)
 		//control = strings.Repeat("+", pos.n)
 	} else if posN > 0 {
 		var (
 			prevNA      n.NucleicAcid
 			curNA       = self.getNA(posN)
 			curAA       = self.getAA(posA)
-			q           = sh.GetGapOpeningScore(posA, s.GAPDEL)
-			r0          = sh.GetGapExtensionScore(posA, s.GAPDEL)
-			r1          = sh.GetGapExtensionScore(posA-1, s.GAPDEL)
+			q           = self.q
+			r           = self.r
 			mutScoreN0N = sh.GetSubstitutionScore(posA, n.N, curNA, n.N, curAA)
+			delScore    = 0
 		)
 		score = negInf
 		//if pos.n < self.nSeqLen {
-		if cand := dScore01 + r1 + r1 + r1; cand >= score {
+		if self.supportPositionalIndel {
+			delScore = sh.GetIndelScore(posA, false)
+		}
+		if cand := dScore01 + r + r + r + delScore; cand >= score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, posN, posA-1) //, "---"
 		}
 
-		if cand := gScore01 + q + r0 + r0 + r0; cand > score {
+		if cand := gScore01 + q + r + r + r + delScore; cand > score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, posN, posA-1) //, "---"
 		}
 
 		if cand := gScore11 +
-			sh.GetSubstitutionScore(posA, curNA, n.N, n.N, curAA) + q + r0 + r0; cand > score {
+			sh.GetSubstitutionScore(posA, curNA, n.N, n.N, curAA) + q + r + r; cand > score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, posN-1, posA-1) //, ".--"
 		}
 
-		if cand := gScore11 + mutScoreN0N + q + r0 + q + r0; cand > score {
+		if cand := gScore11 + mutScoreN0N + q + r + q + r; cand > score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, posN-1, posA-1) //, "-.-"
 		}
 
 		if posN > 1 {
 			prevNA = self.getNA(posN - 1)
-			if cand := dScore11 + mutScoreN0N + q + r0 + r0; cand >= score {
+			if cand := dScore11 + mutScoreN0N + q + r + r; cand >= score {
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, posN-1, posA-1) //, "-.-"
 			}
 
 			if cand := gScore21 +
-				sh.GetSubstitutionScore(posA, prevNA, curNA, n.N, curAA) + q + r0; cand >= score {
+				sh.GetSubstitutionScore(posA, prevNA, curNA, n.N, curAA) + q + r; cand >= score {
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, posN-2, posA-1) //, "..-"
 			}
 		}
@@ -449,8 +467,8 @@ func (self *Alignment) calcScore(
 			prevNA, prevNA2/*, prevNA3*/ n.NucleicAcid
 			mutScoreN10 int
 			sh          = self.scoreHandler
-			q           = sh.GetGapOpeningScore(posA, s.GAPDEL)
-			r           = sh.GetGapExtensionScore(posA, s.GAPDEL)
+			q           = self.q
+			r           = self.r
 			curNA       = self.getNA(posN)
 			curAA       = self.getAA(posA)
 			mutScoreNN0 = sh.GetSubstitutionScore(posA, n.N, n.N, curNA, curAA)
@@ -486,53 +504,12 @@ func (self *Alignment) calcScore(
 				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, posN-2, posA-1) //, "-.."
 			}
 		}
-		/*
-			// This part of code is not necessary for the purpose to align known virus sequence to known reference
-			if pos.n > 3 {
-				prevNA3 = self.getNA(pos.n - 3)
-				#5 cand = self.calcScore(pos41) +
-					self.CalcMutationScore(prevNA3, prevNA, curNA, curAA) +
-					CalcGapScore(1, q, r)
-				if cand > score {
-					score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos41), ".+.."
-				}
-
-				#6 cand = self.calcScore(pos41) +
-					self.CalcMutationScore(prevNA3, prevNA2, curNA, curAA) +
-					CalcGapScore(1, q, r)
-				if cand > score {
-					score, prevMatrixIdx, control = cand, self.getMatrixIndex(GENERAL, pos41), "..+."
-				}
-			}
-		*/
 		if cand := /* #9 */ iScore00; cand >= score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(INS, posN, posA) //, ""
 		}
 		if cand := /* #10 */ dScore00; cand >= score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, posN, posA) //, ""
 		}
-		/*
-			// This part of code is not necessary for the purpose to align known virus sequence to known reference
-			if codonInsPos > 0 {
-				#11 cand = self.calcCodonInsScore(pos) +
-					self.CalcMutationScore(
-						self.getNA(codonInsPos),
-						prevNA, curNA, curAA)
-				if cand >= score {
-					score, prevMatrixIdx, control = cand, self.getMatrixIndex(CODON_INS, pos),
-						"."+strings.Repeat("+", pos.n-1-codonInsPos)+".."
-				}
-				#12 cand = self.calcCodonInsScore(pos) +
-					self.CalcMutationScore(
-						self.getNA(codonInsPos),
-						self.getNA(codonInsPos+1),
-						curNA, curAA)
-				if cand >= score {
-					score, prevMatrixIdx, control = cand, self.getMatrixIndex(CODON_INS, pos),
-						".."+strings.Repeat("+", pos.n-1-codonInsPos)+"."
-				}
-			}
-		*/
 	}
 	return score, prevMatrixIdx
 }
@@ -547,10 +524,12 @@ func (self *Alignment) calcScoreMain() {
 		gScoresCur   = make([]int, self.nSeqLen+1)
 		dScoresCur   = make([]int, self.nSeqLen+1)
 
+		gScore30, gScore20 int
 		gScore00, gScore10 int
 		gScore01, gScore11 int
 		gScore21, gScore31 int
 
+		iScore30, iScore20 int
 		iScore00, iScore10 int
 
 		dScore00, dScore01 int
@@ -559,8 +538,9 @@ func (self *Alignment) calcScoreMain() {
 	)
 
 	for j := 0; j <= self.aSeqLen; j++ {
-		gScore10 = negInf
-		iScore10 = negInf
+		gScore30, iScore30 = negInf, negInf
+		gScore20, iScore20 = negInf, negInf
+		gScore10, iScore10 = negInf, negInf
 		for i := 0; i <= self.nSeqLen; i++ {
 
 			gScore01 = gScores[i]
@@ -579,7 +559,7 @@ func (self *Alignment) calcScoreMain() {
 				gScore31 = gScores[i-3]
 			}
 			iScore00, prevMtIdx = self.calcExtInsScore(
-				i, j, gScore10, iScore10)
+				i, j, gScore30, iScore30, gScore10, iScore10)
 
 			self.setCachedScore(INS, i, j, iScore00, prevMtIdx)
 
@@ -606,8 +586,8 @@ func (self *Alignment) calcScoreMain() {
 				maxScorePosA = j
 			}
 
-			gScore10 = gScore00
-			iScore10 = iScore00
+			gScore30, gScore20, gScore10 = gScore20, gScore10, gScore00
+			iScore30, iScore20, iScore10 = iScore20, iScore10, iScore00
 		}
 
 		gScores, gScoresCur = gScoresCur, gScores
