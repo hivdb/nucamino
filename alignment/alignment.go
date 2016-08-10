@@ -6,8 +6,8 @@ import (
 	f "../types/frameshift"
 	m "../types/mutation"
 	n "../types/nucleic"
-	"strings"
 	//"fmt"
+	"strings"
 )
 
 type tScoreType int
@@ -234,7 +234,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 			break
 		}
 	}
-	print(aLine, ")\n")
+	/*print(aLine, ")\n")
 	print(cLine, ")\n")
 	print(nLine, ")\n")
 	print("First AA: ", firstAA, "\n")
@@ -249,7 +249,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 		print(frameshift.ToString(), ", ")
 	}
 	print("\n")
-	print("Total Score: ", self.maxScore, "\n")
+	print("Total Score: ", self.maxScore, "\n")*/
 	return AlignmentReport{
 		FirstAA:     firstAA,
 		FirstNA:     firstNA,
@@ -344,7 +344,7 @@ func (self *Alignment) getAA(aPos int) a.AminoAcid {
 func (self *Alignment) calcExtInsScore(
 	posN int, posA int,
 	gScore30 int, iScore30 int,
-	gScore10 int, iScore10 int) (int, int) {
+	gScore20 int, gScore10 int, iScore10 int) (int, int) {
 	var (
 		cand, prevMatrixIdx int
 		score               = negInf
@@ -365,14 +365,16 @@ func (self *Alignment) calcExtInsScore(
 		if self.supportPositionalIndel && posN > 3 {
 			insScore := sh.GetIndelScore(posA, true)
 			if cand = iScore30 + r + r + r + insScore; cand > score {
-				score, prevMatrixIdx = cand, self.getMatrixIndex(INS, posN-3, posA)
+				score, prevMatrixIdx = cand, self.getMatrixIndex(INS, posN-3, posA) //, "+++"
 			}
 			if cand = gScore30 + q + r + r + r + insScore; cand > score {
-				score, prevMatrixIdx = cand, self.getMatrixIndex(GENERAL, posN-3, posA)
+				score, prevMatrixIdx = cand, self.getMatrixIndex(GENERAL, posN-3, posA) //, "+++"
 			}
 		}
-		if cand = iScore10 + r; cand > score {
-			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(INS, posN-1, posA) //, "+"
+		if posN > 2 {
+			if cand = gScore20 + q + r + r; cand > score {
+				score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, posN-2, posA) //, "++"
+			}
 		}
 		if cand = gScore10 + q + r; cand > score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, posN-1, posA) //, "+"
@@ -559,7 +561,7 @@ func (self *Alignment) calcScoreMain() {
 				gScore31 = gScores[i-3]
 			}
 			iScore00, prevMtIdx = self.calcExtInsScore(
-				i, j, gScore30, iScore30, gScore10, iScore10)
+				i, j, gScore30, iScore30, gScore20, gScore10, iScore10)
 
 			self.setCachedScore(INS, i, j, iScore00, prevMtIdx)
 
