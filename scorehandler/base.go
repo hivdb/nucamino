@@ -20,5 +20,8 @@ type ScoreHandler interface {
 		/* ref */ a.AminoAcid) int
 	GetGapExtensionScore() int
 	GetGapOpeningScore() int
-	GetIndelScore( /* refPosition */ int /* isInsertion */, bool) int
+	GetConstantIndelCodonScore() int
+	GetPositionalIndelCodonScore(
+		/* refPosition */ int,
+		/* isInsertion */ bool) int
 }

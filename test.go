@@ -1,31 +1,151 @@
 package main
 
 import (
-	"github.com/chrislusf/glow/flow"
-	"math"
+	"./alignment"
+	//s "./scorehandler"
+	//"./scorehandler/blosum62"
+	d "./data"
+	s "./scorehandler"
+	"./scorehandler/hiv1b"
+	a "./types/amino"
+	n "./types/nucleic"
+	"bufio"
+	"fmt"
+	"github.com/davecheney/profile"
+	"log"
+	"os"
+	"strings"
+	"sync"
+	//"time"
 )
 
-func main() {
-	inChan := make(chan func() float64)
-	outChan := make(chan float64)
+type Sequence struct {
+	Name     string
+	Sequence []n.NucleicAcid
+}
+
+//const GBFILE = "GB.local.seqs.codon69.txt"
+const GBFILE = "GB.local.seqs.txt"
+
+//const RESULTFILES = "Result.GB.local.seqs.codon69.-.%s.tsv"
+const RESULTFILES = "Result.GB.local.seqs.-.%s.tsv"
+
+const COUNT = 120000
+
+func iterSequences(fileName string, first int) chan Sequence {
+	resultChan := make(chan Sequence)
 	go func() {
-		inChan <- func() float64 { return 15.1 }
-		inChan <- func() float64 { return 112.5 }
-		inChan <- func() float64 { return 46.3 }
-		inChan <- func() float64 { return 3.7 }
-		close(inChan)
+		file, err := os.Open(fileName)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			splitted := strings.SplitN(line, "||", 2)
+			name, seqText := splitted[0], splitted[1]
+			resultChan <- Sequence{name, n.ReadString(seqText)}
+			first--
+			if first == 0 {
+				break
+			}
+		}
+		close(resultChan)
 	}()
+	return resultChan
+}
 
-	f := flow.New().
-		Channel(inChan).
-		Map(func(cb func() float64) float64 {
-			return cb()
-		}).
-		Reduce(math.Max).
-		AddOutput(outChan)
-	go f.Run()
+/*func test(scoreHandler s.ScoreHandler) *alignment.Alignment {
+	cmp := alignment.NewAlignment(
+		scoreHandler,
+	)
+	cmp.CalcScore()
+	return cmp
+}*/
 
-	for score := range outChan {
-		println(score)
+func getReport(seqName string, r alignment.AlignmentReport) string {
+	v := fmt.Sprintf("%s\t%d\t%d\t%d\t%d\t%s\t%s\n",
+		seqName,
+		r.FirstAA, r.LastAA,
+		r.FirstNA, r.LastNA,
+		func() string {
+			muts := ""
+			for _, mut := range r.Mutations {
+				muts += mut.ToString() + ","
+			}
+			return muts
+		}(),
+		func() string {
+			fss := ""
+			for _, fs := range r.FrameShifts {
+				fss += fs.ToString() + ","
+			}
+			return fss
+		}())
+	return v
+}
+
+func writeReport(seqName string, r alignment.AlignmentReport, fp *os.File) {
+	fp.WriteString(getReport(seqName, r))
+}
+
+func main() {
+	defer profile.Start(profile.CPUProfile).Stop()
+	var (
+		wg         = sync.WaitGroup{}
+		threads    = 4
+		count      = COUNT
+		seqChan    = iterSequences(GBFILE, count)
+		seqChan2   = iterSequences(GBFILE, count)
+		resultChan = make(chan [3]string)
+		resultMap  = make(map[string][3]string)
+		genes      = [3]hiv1b.Gene{hiv1b.PR, hiv1b.RT, hiv1b.IN}
+		refs       = [3][]a.AminoAcid{d.HIV1BSEQ_PR, d.HIV1BSEQ_RT, d.HIV1BSEQ_IN}
+		fps        = [3]*os.File{}
+	)
+	fps[0], _ = os.Create(fmt.Sprintf(RESULTFILES, "PR"))
+	fps[1], _ = os.Create(fmt.Sprintf(RESULTFILES, "RT"))
+	fps[2], _ = os.Create(fmt.Sprintf(RESULTFILES, "IN"))
+	for i := 0; i < threads; i++ {
+		wg.Add(1)
+		go func(idx int, rChan chan<- [3]string) {
+			var (
+				scoreHandlers [3]s.ScoreHandler
+			)
+			for i, gene := range genes {
+				scoreHandlers[i] = hiv1b.NewAsScoreHandler(
+					/* gene                */ gene,
+					/* indelCodonBonus     */ 2,
+					/* stopCodonPenalty    */ 4,
+					/* gapOpenPenalty      */ 10,
+					/* gapExtensionPenalty */ 2,
+				)
+			}
+			for seq, ok := <-seqChan; ok; seq, ok = <-seqChan {
+				result := [3]string{}
+				for i := 0; i < 3; i++ {
+					aligned := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
+					r := aligned.GetReport()
+					result[i] = getReport(seq.Name, r)
+				}
+				rChan <- result
+			}
+			wg.Done()
+		}(i, resultChan)
+	}
+	go func(rChan chan<- [3]string) {
+		wg.Wait()
+		close(rChan)
+	}(resultChan)
+	for result := range resultChan {
+		name := strings.SplitN(result[0], "\t", 2)
+		resultMap[name[0]] = result
+	}
+	for seq := range seqChan2 {
+		result := resultMap[seq.Name]
+		for i, _ := range genes {
+			fps[i].WriteString(result[i])
+		}
 	}
 }

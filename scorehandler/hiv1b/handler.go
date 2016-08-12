@@ -51,7 +51,11 @@ func (self *HIV1BScoreHandler) IsPositionalIndelScoreSupported() bool {
 	return self.gene == RT
 }
 
-func (self *HIV1BScoreHandler) GetIndelScore(position int, isInsertion bool) int {
+func (self *HIV1BScoreHandler) GetConstantIndelCodonScore() int {
+	return self.indelCodonBonus
+}
+
+func (self *HIV1BScoreHandler) GetPositionalIndelCodonScore(position int, isInsertion bool) int {
 	score := self.indelCodonBonus
 	if self.gene == RT {
 		if isInsertion {

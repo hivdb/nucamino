@@ -87,7 +87,11 @@ func (self *Blosum62ScoreHandler) IsPositionalIndelScoreSupported() bool {
 	return false
 }
 
-func (self *Blosum62ScoreHandler) GetIndelScore(position int, isInsertion bool) int {
+func (self *Blosum62ScoreHandler) GetConstantIndelCodonScore() int {
+	return 0
+}
+
+func (self *Blosum62ScoreHandler) GetPositionalIndelCodonScore(position int, isInsertion bool) int {
 	return 0
 }
 
