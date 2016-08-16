@@ -60,10 +60,10 @@ func (self *HIV1BScoreHandler) GetPositionalIndelCodonScore(position int, isInse
 	if self.gene == RT {
 		if isInsertion {
 			switch position {
-			case 63, 64, 65, 66, 72, 73:
+			case 65, 66, 67:
 				score = -9 * self.scoreScale
 				break
-			case 67, 68, 70, 71:
+			case 63, 64, 68, 70, 71, 72, 73:
 				score = -3 * self.scoreScale
 				break
 			case 69:
