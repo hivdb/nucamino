@@ -1,6 +1,6 @@
 package data
 
-import a "../types/amino"
+import a "github.com/hivdb/viralign/types/amino"
 
 var (
 	HIV1BSEQ_PR = a.ReadString(`

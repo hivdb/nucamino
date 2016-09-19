@@ -1,22 +1,23 @@
 package main
 
 import (
-	"./alignment"
-	//s "./scorehandler"
-	//"./scorehandler/blosum62"
-	d "./data"
-	s "./scorehandler"
-	"./scorehandler/hiv1b"
-	a "./types/amino"
-	n "./types/nucleic"
 	"bufio"
 	"fmt"
-	"github.com/davecheney/profile"
 	"log"
 	"os"
 	"strings"
 	"sync"
-	//"time"
+)
+
+import (
+	"github.com/hivdb/viralign/alignment"
+	//"github.com/hivdb/viralign/scorehandler/blosum62"
+	"github.com/davecheney/profile"
+	d "github.com/hivdb/viralign/data"
+	s "github.com/hivdb/viralign/scorehandler"
+	"github.com/hivdb/viralign/scorehandler/hiv1b"
+	a "github.com/hivdb/viralign/types/amino"
+	n "github.com/hivdb/viralign/types/nucleic"
 )
 
 type Sequence struct {
@@ -24,11 +25,11 @@ type Sequence struct {
 	Sequence []n.NucleicAcid
 }
 
-//const GBFILE = "GB.local.seqs.codon69.txt"
-const GBFILE = "GB.local.seqs.txt"
+//const GBFILE = "GB.local.seqs.txt"
+const GBFILE = "GB.local.seqs.codon69.txt"
 
-//const RESULTFILES = "Result.GB.local.seqs.codon69.-.%s.tsv"
-const RESULTFILES = "Result.GB.local.seqs.-.%s.tsv"
+//const RESULTFILES = "Result.GB.local.seqs.-.%s.tsv"
+const RESULTFILES = "Result.GB.local.seqs.codon69.-.%s.tsv"
 
 const COUNT = 120000
 

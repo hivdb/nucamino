@@ -1,10 +1,10 @@
 package mutation
 
 import (
-	a "../amino"
-	c "../codon"
-	n "../nucleic"
 	"fmt"
+	a "github.com/hivdb/viralign/types/amino"
+	c "github.com/hivdb/viralign/types/codon"
+	n "github.com/hivdb/viralign/types/nucleic"
 )
 
 type Mutation struct {

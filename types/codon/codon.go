@@ -1,8 +1,8 @@
 package codon
 
 import (
-	a "../amino"
-	. "../nucleic"
+	a "github.com/hivdb/viralign/types/amino"
+	. "github.com/hivdb/viralign/types/nucleic"
 	"strings"
 )
 

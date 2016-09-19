@@ -1,8 +1,8 @@
 package scorehandler
 
 import (
-	a "../types/amino"
-	n "../types/nucleic"
+	a "github.com/hivdb/viralign/types/amino"
+	n "github.com/hivdb/viralign/types/nucleic"
 )
 
 const (

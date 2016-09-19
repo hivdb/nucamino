@@ -1,10 +1,10 @@
 package hiv1b
 
 import (
-	. "../../scorehandler"
-	a "../../types/amino"
-	n "../../types/nucleic"
-	b62 "../blosum62"
+	. "github.com/hivdb/viralign/scorehandler"
+	b62 "github.com/hivdb/viralign/scorehandler/blosum62"
+	a "github.com/hivdb/viralign/types/amino"
+	n "github.com/hivdb/viralign/types/nucleic"
 )
 
 type Gene uint8

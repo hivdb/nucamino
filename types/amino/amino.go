@@ -1,7 +1,7 @@
 package amino
 
 import (
-	"../../utils"
+	"github.com/hivdb/viralign/utils"
 	"strings"
 )
 

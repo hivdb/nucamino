@@ -1,11 +1,11 @@
 package alignment
 
 import (
-	s "../scorehandler"
-	a "../types/amino"
-	f "../types/frameshift"
-	m "../types/mutation"
-	n "../types/nucleic"
+	s "github.com/hivdb/viralign/scorehandler"
+	a "github.com/hivdb/viralign/types/amino"
+	f "github.com/hivdb/viralign/types/frameshift"
+	m "github.com/hivdb/viralign/types/mutation"
+	n "github.com/hivdb/viralign/types/nucleic"
 	//"fmt"
 	"strings"
 )
@@ -201,7 +201,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 			break
 		}
 	}
-	/*print(aLine, ")\n")
+	print(aLine, ")\n")
 	print(cLine, ")\n")
 	print(nLine, ")\n")
 	print("First AA: ", firstAA, "\n")
@@ -216,7 +216,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 		print(frameshift.ToString(), ", ")
 	}
 	print("\n")
-	print("Total Score: ", self.maxScore, "\n")*/
+	print("Total Score: ", self.maxScore, "\n")
 	return AlignmentReport{
 		FirstAA:          firstAA,
 		FirstNA:          firstNA,

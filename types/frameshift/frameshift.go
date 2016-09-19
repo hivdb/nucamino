@@ -1,8 +1,8 @@
 package frameshift
 
 import (
-	n "../nucleic"
 	"fmt"
+	n "github.com/hivdb/viralign/types/nucleic"
 )
 
 type Indel bool

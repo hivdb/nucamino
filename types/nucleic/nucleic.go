@@ -1,7 +1,7 @@
 package nucleic
 
 import (
-	"../../utils"
+	"github.com/hivdb/viralign/utils"
 	"strings"
 )
 
