@@ -29,3 +29,6 @@ _testmain.go
 *.pyc
 __pycache__
 *~
+
+main.go
+.DS_Store
