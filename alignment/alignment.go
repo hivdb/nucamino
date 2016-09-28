@@ -32,19 +32,20 @@ func (self tScoreType) ToString() string {
 }
 
 type Alignment struct {
-	nSeq                   []n.NucleicAcid
-	aSeq                   []a.AminoAcid
-	nSeqLen                int
-	aSeqLen                int
-	maxScorePosN           int
-	maxScorePosA           int
-	maxScore               int
-	scoreHandler           s.ScoreHandler
-	scoreMatrix            []int
-	q                      int
-	r                      int
-	supportPositionalIndel bool
-	constIndelCodonScore   int
+	nSeq                          []n.NucleicAcid
+	aSeq                          []a.AminoAcid
+	nSeqLen                       int
+	aSeqLen                       int
+	maxScorePosN                  int
+	maxScorePosA                  int
+	maxScore                      int
+	scoreHandler                  s.ScoreHandler
+	scoreMatrix                   []int
+	q                             int
+	r                             int
+	supportPositionalIndel        bool
+	constIndelCodonOpeningScore   int
+	constIndelCodonExtensionScore int
 }
 
 type AlignmentReport struct {
@@ -64,17 +65,20 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.Score
 	aSeqLen := len(aSeq)
 	typedPosLen := scoreTypeCount * (nSeqLen + 1) * (aSeqLen + 1) * 2
 	scoreMatrix := make([]int, typedPosLen)
+	constIndelCodonOpeningScore, constIndelCodonExtensionScore :=
+		scoreHandler.GetConstantIndelCodonScore()
 	result := &Alignment{
-		q:                      scoreHandler.GetGapOpeningScore(),
-		r:                      scoreHandler.GetGapExtensionScore(),
-		nSeq:                   nSeq,
-		aSeq:                   aSeq,
-		nSeqLen:                nSeqLen,
-		aSeqLen:                aSeqLen,
-		scoreHandler:           scoreHandler,
-		scoreMatrix:            scoreMatrix,
-		supportPositionalIndel: scoreHandler.IsPositionalIndelScoreSupported(),
-		constIndelCodonScore:   scoreHandler.GetConstantIndelCodonScore(),
+		q:                             scoreHandler.GetGapOpeningScore(),
+		r:                             scoreHandler.GetGapExtensionScore(),
+		nSeq:                          nSeq,
+		aSeq:                          aSeq,
+		nSeqLen:                       nSeqLen,
+		aSeqLen:                       aSeqLen,
+		scoreHandler:                  scoreHandler,
+		scoreMatrix:                   scoreMatrix,
+		supportPositionalIndel:        scoreHandler.IsPositionalIndelScoreSupported(),
+		constIndelCodonOpeningScore:   constIndelCodonOpeningScore,
+		constIndelCodonExtensionScore: constIndelCodonExtensionScore,
 	}
 	result.calcScoreMain()
 	return result
@@ -262,7 +266,8 @@ func (self *Alignment) calcExtInsScore(
 	gScore30 int, iScore30 int,
 	gScore20 int, gScore10 int) (int, int) {
 	var (
-		insScore            int
+		insOpeningScore     int
+		insExtensionScore   int
 		cand, prevMatrixIdx int
 		score               = negInf
 		sh                  = self.scoreHandler
@@ -276,15 +281,16 @@ func (self *Alignment) calcExtInsScore(
 	} else {
 		score = negInf
 		if self.supportPositionalIndel {
-			insScore = sh.GetPositionalIndelCodonScore(posA, true)
+			insOpeningScore, insExtensionScore = sh.GetPositionalIndelCodonScore(posA, true)
 		} else {
-			insScore = self.constIndelCodonScore
+			insOpeningScore = self.constIndelCodonOpeningScore
+			insExtensionScore = self.constIndelCodonExtensionScore
 		}
 		if posN > 3 {
-			if cand = iScore30 + r + r + r + insScore; cand > score {
+			if cand = iScore30 + r + r + r + insExtensionScore; cand > score {
 				score, prevMatrixIdx = cand, self.getMatrixIndex(INS, posN-3, posA) //, "+++"
 			}
-			if cand = gScore30 + q + r + r + r + insScore; cand > score {
+			if cand = gScore30 + q + r + r + r + insOpeningScore + insExtensionScore; cand > score {
 				score, prevMatrixIdx = cand, self.getMatrixIndex(GENERAL, posN-3, posA) //, "+++"
 			}
 		}
@@ -315,25 +321,27 @@ func (self *Alignment) calcDelScore(
 		//control = strings.Repeat("+", pos.n)
 	} else if posN > 0 {
 		var (
-			delScore    int
-			prevNA      n.NucleicAcid
-			curNA       = self.getNA(posN)
-			curAA       = self.getAA(posA)
-			q           = self.q
-			r           = self.r
-			mutScoreN0N = sh.GetSubstitutionScore(posA, n.N, curNA, n.N, curAA)
+			delOpeningScore   int
+			delExtensionScore int
+			prevNA            n.NucleicAcid
+			curNA             = self.getNA(posN)
+			curAA             = self.getAA(posA)
+			q                 = self.q
+			r                 = self.r
+			mutScoreN0N       = sh.GetSubstitutionScore(posA, n.N, curNA, n.N, curAA)
 		)
 		score = negInf
 		if self.supportPositionalIndel {
-			delScore = sh.GetPositionalIndelCodonScore(posA, false)
+			delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA, false)
 		} else {
-			delScore = self.constIndelCodonScore
+			delOpeningScore = self.constIndelCodonOpeningScore
+			delExtensionScore = self.constIndelCodonExtensionScore
 		}
-		if cand := dScore01 + r + r + r + delScore; cand >= score {
+		if cand := dScore01 + r + r + r + delExtensionScore; cand >= score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(DEL, posN, posA-1) //, "---"
 		}
 
-		if cand := gScore01 + q + r + r + r + delScore; cand > score {
+		if cand := gScore01 + q + r + r + r + delOpeningScore + delExtensionScore; cand > score {
 			score, prevMatrixIdx /*, control*/ = cand, self.getMatrixIndex(GENERAL, posN, posA-1) //, "---"
 		}
 

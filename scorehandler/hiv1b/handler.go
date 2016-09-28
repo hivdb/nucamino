@@ -18,10 +18,11 @@ const (
 const negInf = -int((^uint(0))>>1) - 1
 
 type HIV1BScoreHandler struct {
-	gene            Gene
-	scoreScale      int
-	indelCodonBonus int
-	blosum62Handler *b62.Blosum62ScoreHandler
+	gene                     Gene
+	scoreScale               int
+	indelCodonOpeningBonus   int
+	indelCodonExtensionBonus int
+	blosum62Handler          *b62.Blosum62ScoreHandler
 }
 
 func (self *HIV1BScoreHandler) GetSubstitutionScore(
@@ -51,12 +52,12 @@ func (self *HIV1BScoreHandler) IsPositionalIndelScoreSupported() bool {
 	return self.gene == RT
 }
 
-func (self *HIV1BScoreHandler) GetConstantIndelCodonScore() int {
-	return self.indelCodonBonus
+func (self *HIV1BScoreHandler) GetConstantIndelCodonScore() (int, int) {
+	return self.indelCodonOpeningBonus, self.indelCodonExtensionBonus
 }
 
-func (self *HIV1BScoreHandler) GetPositionalIndelCodonScore(position int, isInsertion bool) int {
-	score := self.indelCodonBonus
+func (self *HIV1BScoreHandler) GetPositionalIndelCodonScore(position int, isInsertion bool) (int, int) {
+	score := self.indelCodonOpeningBonus
 	if self.gene == RT {
 		if isInsertion {
 			switch position {
@@ -72,30 +73,35 @@ func (self *HIV1BScoreHandler) GetPositionalIndelCodonScore(position int, isInse
 			}
 		}
 	}
-	return score
+	return score, self.indelCodonExtensionBonus
 }
 
 func NewAsScoreHandler(
 	gene Gene,
-	indelCodonBonus int,
+	indelCodonOpeningBonus int,
+	indelCodonExtensionBonus int,
 	stopCodonPenalty int,
 	gapOpenPenalty int,
 	gapExtensionPenalty int) ScoreHandler {
-	return New(gene, indelCodonBonus, stopCodonPenalty, gapOpenPenalty, gapExtensionPenalty, 100)
+	return New(
+		gene, indelCodonOpeningBonus, indelCodonExtensionBonus,
+		stopCodonPenalty, gapOpenPenalty, gapExtensionPenalty, 100)
 }
 
 func New(
 	gene Gene,
-	indelCodonBonus int,
+	indelCodonOpeningBonus int,
+	indelCodonExtensionBonus int,
 	stopCodonPenalty int,
 	gapOpenPenalty int,
 	gapExtensionPenalty int,
 	scoreScale int) *HIV1BScoreHandler {
 	b62handler := b62.New(stopCodonPenalty, gapOpenPenalty, gapExtensionPenalty, scoreScale)
 	return &HIV1BScoreHandler{
-		gene:            gene,
-		indelCodonBonus: indelCodonBonus * scoreScale,
-		scoreScale:      scoreScale,
-		blosum62Handler: b62handler,
+		gene: gene,
+		indelCodonOpeningBonus:   indelCodonOpeningBonus * scoreScale,
+		indelCodonExtensionBonus: indelCodonExtensionBonus * scoreScale,
+		scoreScale:               scoreScale,
+		blosum62Handler:          b62handler,
 	}
 }
