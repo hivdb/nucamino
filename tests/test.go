@@ -1,4 +1,4 @@
-package tests
+package main
 
 import (
 	"bufio"
@@ -26,10 +26,10 @@ type Sequence struct {
 }
 
 //const GBFILE = "GB.local.seqs.txt"
-const GBFILE = "GB.local.seqs.codon69.txt"
+const GBFILE = "GB.local.seqs.hiv1.txt"
 
 //const RESULTFILES = "Result.GB.local.seqs.-.%s.tsv"
-const RESULTFILES = "Result.GB.local.seqs.codon69.-.%s.tsv"
+const RESULTFILES = "Result.GB.local.seqs.hiv1.-.%s.tsv"
 
 const COUNT = 120000
 
@@ -116,11 +116,12 @@ func main() {
 			)
 			for i, gene := range genes {
 				scoreHandlers[i] = hiv1b.NewAsScoreHandler(
-					/* gene                */ gene,
-					/* indelCodonBonus     */ 2,
-					/* stopCodonPenalty    */ 4,
-					/* gapOpenPenalty      */ 10,
-					/* gapExtensionPenalty */ 2,
+					/* gene                		*/ gene,
+					/* indelCodonOpeningBonus   */ 4,
+					/* indelCodonExtensionBonus */ 0,
+					/* stopCodonPenalty    		*/ 4,
+					/* gapOpenPenalty      		*/ 10,
+					/* gapExtensionPenalty 		*/ 2,
 				)
 			}
 			for seq, ok := <-seqChan; ok; seq, ok = <-seqChan {
