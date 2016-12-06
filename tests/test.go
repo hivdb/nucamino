@@ -10,14 +10,14 @@ import (
 )
 
 import (
-	"github.com/hivdb/viralign/alignment"
-	//"github.com/hivdb/viralign/scorehandler/blosum62"
-	"github.com/davecheney/profile"
-	d "github.com/hivdb/viralign/data"
-	s "github.com/hivdb/viralign/scorehandler"
-	"github.com/hivdb/viralign/scorehandler/hiv1b"
-	a "github.com/hivdb/viralign/types/amino"
-	n "github.com/hivdb/viralign/types/nucleic"
+	"github.com/hivdb/nucamino/alignment"
+	//"github.com/hivdb/nucamino/scorehandler/blosum62"
+	d "github.com/hivdb/nucamino/data"
+	s "github.com/hivdb/nucamino/scorehandler"
+	"github.com/hivdb/nucamino/scorehandler/hiv1b"
+	a "github.com/hivdb/nucamino/types/amino"
+	n "github.com/hivdb/nucamino/types/nucleic"
+	"github.com/pkg/profile"
 )
 
 type Sequence struct {

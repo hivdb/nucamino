@@ -2,7 +2,7 @@ package frameshift
 
 import (
 	"fmt"
-	n "github.com/hivdb/viralign/types/nucleic"
+	n "github.com/hivdb/nucamino/types/nucleic"
 )
 
 type Indel bool

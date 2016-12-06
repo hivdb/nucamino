@@ -32,3 +32,5 @@ __pycache__
 
 main.go
 .DS_Store
+
+local

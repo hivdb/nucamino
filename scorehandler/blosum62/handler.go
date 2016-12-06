@@ -1,11 +1,11 @@
 package blosum62
 
 import (
-	d "github.com/hivdb/viralign/data"
-	. "github.com/hivdb/viralign/scorehandler"
-	a "github.com/hivdb/viralign/types/amino"
-	c "github.com/hivdb/viralign/types/codon"
-	n "github.com/hivdb/viralign/types/nucleic"
+	d "github.com/hivdb/nucamino/data"
+	. "github.com/hivdb/nucamino/scorehandler"
+	a "github.com/hivdb/nucamino/types/amino"
+	c "github.com/hivdb/nucamino/types/codon"
+	n "github.com/hivdb/nucamino/types/nucleic"
 )
 
 const negInf = -int((^uint(0))>>1) - 1

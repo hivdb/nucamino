@@ -1,11 +1,11 @@
 package alignment
 
 import (
-	s "github.com/hivdb/viralign/scorehandler"
-	a "github.com/hivdb/viralign/types/amino"
-	f "github.com/hivdb/viralign/types/frameshift"
-	m "github.com/hivdb/viralign/types/mutation"
-	n "github.com/hivdb/viralign/types/nucleic"
+	s "github.com/hivdb/nucamino/scorehandler"
+	a "github.com/hivdb/nucamino/types/amino"
+	f "github.com/hivdb/nucamino/types/frameshift"
+	m "github.com/hivdb/nucamino/types/mutation"
+	n "github.com/hivdb/nucamino/types/nucleic"
 	//"fmt"
 	"strings"
 )

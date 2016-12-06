@@ -1,6 +1,6 @@
 package data
 
-import . "github.com/hivdb/viralign/types/amino"
+import . "github.com/hivdb/nucamino/types/amino"
 
 var blosum62 = map[AminoAcid]map[AminoAcid]int8{
 	A: {

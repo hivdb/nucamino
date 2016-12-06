@@ -2,9 +2,9 @@ package mutation
 
 import (
 	"fmt"
-	a "github.com/hivdb/viralign/types/amino"
-	c "github.com/hivdb/viralign/types/codon"
-	n "github.com/hivdb/viralign/types/nucleic"
+	a "github.com/hivdb/nucamino/types/amino"
+	c "github.com/hivdb/nucamino/types/codon"
+	n "github.com/hivdb/nucamino/types/nucleic"
 )
 
 type Mutation struct {
