@@ -34,3 +34,4 @@ main.go
 .DS_Store
 
 local
+.goenv
