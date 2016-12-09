@@ -11,6 +11,7 @@ type HIV1BOptions struct {
 	StopCodonPenalty         int         `long:"stop-codon-penalty" value-name:"PENALTY" description:"penalty score when a stop codon was met" default:"4"`
 	GapOpeningPenalty        int         `long:"gap-opening-penalty" value-name:"PENALTY" description:"penalty score when a gap was opened" default:"10"`
 	GapExtensionPenalty      int         `long:"gap-extension-penalty" value-name:"PENALTY" description:"penalty score when a gap was extended" default:"2"`
+	Threads                  int         `long:"threads" value-name:"THREADS" description:"number of threads the alignment can use" default:"4"`
 	Files                    FileOptions `group:"File Options"`
 }
 
@@ -21,7 +22,7 @@ func (self *HIV1BOptions) Execute(args []string) error {
 		string(self.Files.Input), string(self.Files.Output), self.Genes,
 		self.IndelCodonOpeningBonus, self.IndelCodonExtensionBonus,
 		self.StopCodonPenalty, self.GapOpeningPenalty,
-		self.GapExtensionPenalty)
+		self.GapExtensionPenalty, self.Threads)
 	return nil
 }
 

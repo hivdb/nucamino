@@ -18,4 +18,8 @@ build: dockerimage
 	@docker rm -f nucamino-build 2>/dev/null || true
 	@docker run --rm -it --name nucamino-build --volume $(shell pwd)/.goenv:/go --volume $(shell pwd):${APPROOT} -e GOOS=${GOOS} -e GOARCH=${GOARCH} nucamino-dev ${APPROOT}/hack/build.sh
 
+cross-build: dockerimage
+	@docker rm -f nucamino-build 2>/dev/null || true
+	@docker run --rm -it --name nucamino-build --volume $(shell pwd)/.goenv:/go --volume $(shell pwd):${APPROOT} nucamino-dev ${APPROOT}/hack/cross-compile.sh
+
 .PHONY: dockerimage pprof

@@ -43,7 +43,10 @@ func ReadSequences(reader io.Reader) []Sequence {
 			seqBuffer.WriteString(strings.TrimSpace(line))
 		}
 	}
-	if name != "" {
+	if name != "" || seqBuffer.Len() > 0 {
+		if name == "" {
+			name = "unnamed sequence"
+		}
 		results = append(results, makeSequence(name, seqBuffer.String()))
 	}
 	return results

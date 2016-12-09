@@ -107,7 +107,8 @@ func PerformAlignment(
 	indelCodonExtensionBonus int,
 	stopCodonPenalty int,
 	gapOpeningPenalty int,
-	gapExtensionPenalty int) {
+	gapExtensionPenalty int,
+	threads int) {
 
 	var input, output *os.File
 	var err error
@@ -140,7 +141,6 @@ func PerformAlignment(
 
 	var (
 		wg         = sync.WaitGroup{}
-		threads    = 4
 		seqs       = fastareader.ReadSequences(input)
 		resultChan = make(chan []alignmentResult)
 		resultMap  = make(map[string][]alignmentResult)
