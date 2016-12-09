@@ -205,7 +205,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 			break
 		}
 	}
-	print(aLine, ")\n")
+	/*print(aLine, ")\n")
 	print(cLine, ")\n")
 	print(nLine, ")\n")
 	print("First AA: ", firstAA, "\n")
@@ -220,7 +220,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 		print(frameshift.ToString(), ", ")
 	}
 	print("\n")
-	print("Total Score: ", self.maxScore, "\n")
+	print("Total Score: ", self.maxScore, "\n")*/
 	return AlignmentReport{
 		FirstAA:          firstAA,
 		FirstNA:          firstNA,

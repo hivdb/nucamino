@@ -15,6 +15,12 @@ const (
 	IN
 )
 
+var GeneLookup = map[string]Gene{
+	"PR": PR,
+	"RT": RT,
+	"IN": IN,
+}
+
 const negInf = -int((^uint(0))>>1) - 1
 
 type HIV1BScoreHandler struct {

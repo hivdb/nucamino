@@ -25,3 +25,9 @@ var (
 		QDED
 	`)
 )
+
+var HIV1BRefLookup = map[string][]a.AminoAcid{
+	"PR": HIV1BSEQ_PR,
+	"RT": HIV1BSEQ_RT,
+	"IN": HIV1BSEQ_IN,
+}

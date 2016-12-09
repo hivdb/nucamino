@@ -2,8 +2,9 @@
 
 set -e
 
-go get github.com/hivdb/nucamino/...
-cd `dirname $0`
+cd /go/src/github.com/hivdb/nucamino
+go get ./...
+cd pprof
 go build main.go
 ./main 2> /tmp/output
 PPROF_FILE=`grep "cpu profiling disabled" /tmp/output | awk '{print $(NF)}'`
