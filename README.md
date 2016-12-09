@@ -9,12 +9,14 @@ Compilation
 -----------
 
 NucAmino is a program written in [Go programming language][golang]. You need
-to have Go installed to compile it.
+to have Go installed to compile it. The installation of Go are varied in
+different systems or even in same system. Therefore, we introduced
+[Docker][docker] to simplify the building process. You don't need to have
+a native Go installed if you have Docker.
 
-We introduced [Docker][docker] to simplify the building process. The
-installation of Docker is very simple and it supports most modern operating
-systems like Linux, MacOS and even Windows. Please visit
-[Docker website][docker] to retrieve installation packages for your system.
+The installation of Docker is very simple and it supports most modern
+operating systems like Linux, MacOS and even Windows. Please visit
+[its website][docker] to retrieve installation packages for your system.
 
 Once you installed Docker, just type this single command and you'll have a
 ready-for-use `nucamino` executable file under `./build` folder:
