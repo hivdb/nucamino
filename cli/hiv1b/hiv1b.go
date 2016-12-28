@@ -99,6 +99,17 @@ func writeTSV(
 	}
 }
 
+func seqSlice2Chan(s []fastareader.Sequence) chan fastareader.Sequence {
+	c := make(chan fastareader.Sequence)
+	go func() {
+		for _, item := range s {
+			c <- item
+		}
+		close(c)
+	}()
+	return c
+}
+
 func PerformAlignment(
 	inputFileName string,
 	outputFileName string,
@@ -145,6 +156,7 @@ func PerformAlignment(
 		resultChan = make(chan []alignmentResult)
 		resultMap  = make(map[string][]alignmentResult)
 	)
+	var seqChan = seqSlice2Chan(seqs)
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
 		go func(idx int, rChan chan<- []alignmentResult) {
@@ -158,7 +170,7 @@ func PerformAlignment(
 					gapOpeningPenalty,
 					gapExtensionPenalty)
 			}
-			for _, seq := range seqs {
+			for seq := range seqChan {
 				result := make([]alignmentResult, genesCount)
 				for i := 0; i < genesCount; i++ {
 					aligned := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])

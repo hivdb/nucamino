@@ -32,9 +32,9 @@ Download Binaries
 
 For convenience' sake, we provide pre-compiled executables for mainstream
 systems. Those binary files can be found in release pages. The current
-release page is [v0.1][v0.1].
+release page is [v0.1.1][latest].
 
 [golang]: https://golang.org/
 [docker]: https://www.docker.com/
 [mingw]: http://www.mingw.org/
-[v0.1]: https://github.com/hivdb/NucAmino/releases/tag/v0.1
+[latest]: https://github.com/hivdb/NucAmino/releases/tag/v0.1.1
