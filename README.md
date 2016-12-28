@@ -30,7 +30,7 @@ Note: Windows users need [MinGW][mingw] to run `make` commands.
 Download Binaries
 -----------------
 
-For convenience' sake, We provide pre-compiled executables for mainstream
+For convenience' sake, we provide pre-compiled executables for mainstream
 systems. Those binary files can be found in release pages. The current
 release page is [v0.1][v0.1].
 
