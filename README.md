@@ -31,8 +31,30 @@ Download Binaries
 -----------------
 
 For convenience' sake, we provide pre-compiled executables for mainstream
-systems. Those binary files can be found in release pages. The current
+systems. These binary files can be found in release pages. The current
 release page is [v0.1.1][latest].
+
+Usage
+-----
+
+Once compiled or installed, you can use NucAmino to analyze virus sequences
+by using a command line program "nucamino". For now, we only support HIV
+pol sequences but more may be added in the future. The instruction of the
+command line tool can be retrieved by the following command:
+
+Linux and MacOS:
+
+```shell
+./nucamino --help
+./nucamino hiv1b --help
+```
+
+Windows:
+
+```windows
+nucamino --help
+nucamino hiv1b --help
+```
 
 [golang]: https://golang.org/
 [docker]: https://www.docker.com/
