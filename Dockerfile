@@ -1,3 +1,3 @@
-FROM golang:1.7.4-alpine
+FROM golang:1.9-alpine3.6
 RUN apk add --no-cache git graphviz ttf-droid
 VOLUME ["/go"]

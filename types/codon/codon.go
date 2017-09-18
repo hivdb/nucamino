@@ -23,9 +23,6 @@ var stopCodons = map[Codon]bool{
 var CodonToAminoAcidTable = map[Codon]a.AminoAcid{
 	Codon{T, T, T}: a.F,
 	Codon{T, T, C}: a.F,
-	Codon{G, G, G}: a.G,
-	Codon{T, T, T}: a.F,
-	Codon{T, T, C}: a.F,
 	Codon{T, T, A}: a.L,
 	Codon{T, T, G}: a.L,
 
