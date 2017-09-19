@@ -36,3 +36,5 @@ main.go
 local
 .goenv
 build
+
+tests/GB.local.seqs.hiv1.txt

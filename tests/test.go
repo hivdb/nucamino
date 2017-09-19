@@ -17,7 +17,7 @@ import (
 	"github.com/hivdb/nucamino/scorehandler/hiv1b"
 	a "github.com/hivdb/nucamino/types/amino"
 	n "github.com/hivdb/nucamino/types/nucleic"
-	"github.com/pkg/profile"
+	//"github.com/pkg/profile"
 )
 
 type Sequence struct {
@@ -92,7 +92,7 @@ func writeReport(seqName string, r alignment.AlignmentReport, fp *os.File) {
 }
 
 func main() {
-	defer profile.Start(profile.CPUProfile).Stop()
+	// defer profile.Start(profile.CPUProfile).Stop()
 	var (
 		wg         = sync.WaitGroup{}
 		threads    = 4
@@ -127,7 +127,10 @@ func main() {
 			for seq, ok := <-seqChan; ok; seq, ok = <-seqChan {
 				result := [3]string{}
 				for i := 0; i < 3; i++ {
-					aligned := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
+					aligned, success := alignment.NewAlignment(seq.Name, seq.Sequence, refs[i], scoreHandlers[i])
+					if !success {
+						continue
+					}
 					r := aligned.GetReport()
 					result[i] = getReport(seq.Name, r)
 				}
