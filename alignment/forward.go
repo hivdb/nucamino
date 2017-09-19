@@ -27,7 +27,7 @@ func (self *Alignment) calcExtInsScoreForward(
 	} else {
 		score = negInf
 		if self.supportPositionalIndel {
-			insOpeningScore, insExtensionScore = sh.GetPositionalIndelCodonScore(posA, true)
+			insOpeningScore, insExtensionScore = sh.GetPositionalIndelCodonScore(posA+self.aSeqOffset, true)
 		} else {
 			insOpeningScore = self.constIndelCodonOpeningScore
 			insExtensionScore = self.constIndelCodonExtensionScore
@@ -89,11 +89,11 @@ func (self *Alignment) calcDelScoreForward(
 			curAA             = self.getAA(posA)
 			q                 = self.q
 			r                 = self.r
-			mutScoreN0N       = sh.GetSubstitutionScore(posA, n.N, curNA, n.N, curAA)
+			mutScoreN0N       = sh.GetSubstitutionScore(posA+self.aSeqOffset, n.N, curNA, n.N, curAA)
 		)
 		score = negInf
 		if self.supportPositionalIndel {
-			delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA, false)
+			delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA+self.aSeqOffset, false)
 		} else {
 			delOpeningScore = self.constIndelCodonOpeningScore
 			delExtensionScore = self.constIndelCodonExtensionScore
@@ -113,7 +113,7 @@ func (self *Alignment) calcDelScoreForward(
 		}
 
 		if cand := gScore11 +
-			sh.GetSubstitutionScore(posA, curNA, n.N, n.N, curAA) + q + r + r; cand > score {
+			sh.GetSubstitutionScore(posA+self.aSeqOffset, curNA, n.N, n.N, curAA) + q + r + r; cand > score {
 			score = cand
 			if !self.boundaryOnly {
 				prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-1, posA-1) //, ".--"
@@ -137,7 +137,7 @@ func (self *Alignment) calcDelScoreForward(
 			}
 
 			if cand := gScore21 +
-				sh.GetSubstitutionScore(posA, prevNA, curNA, n.N, curAA) + q + r; cand >= score {
+				sh.GetSubstitutionScore(posA+self.aSeqOffset, prevNA, curNA, n.N, curAA) + q + r; cand >= score {
 				score = cand
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA-1) //, "..-"
@@ -171,7 +171,7 @@ func (self *Alignment) calcScoreForward(
 			r           = self.r
 			curNA       = self.getNA(posN)
 			curAA       = self.getAA(posA)
-			mutScoreNN0 = sh.GetSubstitutionScore(posA, n.N, n.N, curNA, curAA)
+			mutScoreNN0 = sh.GetSubstitutionScore(posA+self.aSeqOffset, n.N, n.N, curNA, curAA)
 		)
 		score = negInf
 		if cand := /* #1 */ gScore11 + mutScoreNN0 + q + r + r; cand > score {
@@ -182,9 +182,9 @@ func (self *Alignment) calcScoreForward(
 		}
 		if posN > 1 {
 			prevNA = self.getNA(posN - 1)
-			mutScoreN10 = sh.GetSubstitutionScore(posA, n.N, prevNA, curNA, curAA)
+			mutScoreN10 = sh.GetSubstitutionScore(posA+self.aSeqOffset, n.N, prevNA, curNA, curAA)
 			if cand := /* #2 */ gScore21 +
-				sh.GetSubstitutionScore(posA, prevNA, n.N, curNA, curAA) + q + r; cand > score {
+				sh.GetSubstitutionScore(posA+self.aSeqOffset, prevNA, n.N, curNA, curAA) + q + r; cand > score {
 				score = cand
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA-1) //, ".-."
@@ -206,7 +206,7 @@ func (self *Alignment) calcScoreForward(
 		if posN > 2 {
 			prevNA2 = self.getNA(posN - 2)
 			if cand := /* #4 */ gScore31 +
-				sh.GetSubstitutionScore(posA, prevNA2, prevNA, curNA, curAA); cand > score {
+				sh.GetSubstitutionScore(posA+self.aSeqOffset, prevNA2, prevNA, curNA, curAA); cand > score {
 				score = cand
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-3, posA-1) //, "..."

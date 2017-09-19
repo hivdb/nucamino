@@ -11,6 +11,7 @@ import (
 	"github.com/hivdb/nucamino/utils/fastareader"
 	"log"
 	"os"
+	"runtime"
 	"sync"
 )
 
@@ -99,8 +100,8 @@ func writeTSV(
 	}
 }
 
-func seqSlice2Chan(s []fastareader.Sequence) chan fastareader.Sequence {
-	c := make(chan fastareader.Sequence)
+func seqSlice2Chan(s []fastareader.Sequence, bufferSize int) chan fastareader.Sequence {
+	c := make(chan fastareader.Sequence, bufferSize)
 	go func() {
 		for _, item := range s {
 			c <- item
@@ -119,7 +120,19 @@ func PerformAlignment(
 	stopCodonPenalty int,
 	gapOpeningPenalty int,
 	gapExtensionPenalty int,
-	threads int) {
+	goroutines int, quiet bool) {
+
+	runtime.LockOSThread()
+	numCPU := runtime.NumCPU()
+	logger := log.New(os.Stderr, "", 0)
+	if goroutines == 0 {
+		goroutines = numCPU
+	}
+	if !quiet {
+		logger.Printf(
+			"%d CPUs were detected. %d goroutines will be created.\n",
+			numCPU, goroutines)
+	}
 
 	var input, output *os.File
 	var err error
@@ -128,7 +141,7 @@ func PerformAlignment(
 	} else {
 		input, err = os.Open(inputFileName)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 			return
 		}
 	}
@@ -137,7 +150,7 @@ func PerformAlignment(
 	} else {
 		output, err = os.Create(outputFileName)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 			return
 		}
 	}
@@ -156,8 +169,11 @@ func PerformAlignment(
 		resultChan = make(chan []alignmentResult)
 		resultMap  = make(map[string][]alignmentResult)
 	)
-	var seqChan = seqSlice2Chan(seqs)
-	for i := 0; i < threads; i++ {
+	if !quiet {
+		logger.Printf("%d sequences were found from the input file.\n", len(seqs))
+	}
+	var seqChan = seqSlice2Chan(seqs, goroutines*4)
+	for i := 0; i < goroutines; i++ {
 		wg.Add(1)
 		go func(idx int, rChan chan<- []alignmentResult) {
 			scoreHandlers := make([]s.ScoreHandler, genesCount)
@@ -173,21 +189,33 @@ func PerformAlignment(
 			for seq := range seqChan {
 				result := make([]alignmentResult, genesCount)
 				for i := 0; i < genesCount; i++ {
-					aligned := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
+					aligned, success := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
+					if !success {
+						continue
+					}
 					r := aligned.GetReport()
 					result[i] = alignmentResult{seq.Name, &r}
 				}
 				rChan <- result
+				if !quiet {
+					fmt.Fprintf(os.Stderr, ".")
+				}
 			}
 			wg.Done()
 		}(i, resultChan)
 	}
 	go func(rChan chan<- []alignmentResult) {
 		wg.Wait()
+		if !quiet {
+			logger.Printf("\n")
+		}
 		close(rChan)
 	}(resultChan)
 	for result := range resultChan {
 		resultMap[result[0].Name] = result
 	}
 	writeTSV(output, textGenes, seqs, resultMap)
+	if !quiet && outputFileName != "-" {
+		logger.Printf("Created alignment result file %s.", outputFileName)
+	}
 }

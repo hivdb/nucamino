@@ -37,6 +37,7 @@ type Alignment struct {
 	nSeqLen                       int
 	aSeqLen                       int
 	nSeqOffset                    int
+	aSeqOffset                    int
 	maxScorePosN                  int
 	maxScorePosA                  int
 	maxScore                      int
@@ -62,7 +63,7 @@ type AlignmentReport struct {
 	NucleicAcidsLine string
 }
 
-func NewAlignment(name string, nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.ScoreHandler) (*Alignment, bool) {
+func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.ScoreHandler) (*Alignment, bool) {
 	nSeqLen := len(nSeq)
 	aSeqLen := len(aSeq)
 	supportPositionalIndel := scoreHandler.IsPositionalIndelScoreSupported()
@@ -156,8 +157,8 @@ func (self *Alignment) GetReport() AlignmentReport {
 
 			if LastPosA > posA {
 				hasUnprocessedNAs = false
-				mutation = m.MakeMutation(posA+1, self.nSeq[posN:LastPosN], self.aSeq[posA])
-				frameshift = f.MakeFrameShift(posA+1, self.nSeq[posN:LastPosN])
+				mutation = m.MakeMutation(posA+1+self.aSeqOffset, self.nSeq[posN:LastPosN], self.aSeq[posA])
+				frameshift = f.MakeFrameShift(posA+1+self.aSeqOffset, self.nSeq[posN:LastPosN])
 				if mutation != nil {
 					mutList = append(mutList, *mutation)
 				}
@@ -229,9 +230,9 @@ func (self *Alignment) GetReport() AlignmentReport {
 	print("\n")
 	print("Total Score: ", self.maxScore, "\n")*/
 	return AlignmentReport{
-		FirstAA:          firstAA,
+		FirstAA:          firstAA + self.aSeqOffset,
 		FirstNA:          firstNA + self.nSeqOffset,
-		LastAA:           lastAA,
+		LastAA:           lastAA + self.aSeqOffset,
 		LastNA:           lastNA + self.nSeqOffset,
 		Mutations:        mutList,
 		FrameShifts:      fsList,
@@ -271,15 +272,18 @@ func (self *Alignment) getAA(aPos int) a.AminoAcid {
 func (self *Alignment) align() bool {
 	self.boundaryOnly = true
 	// set boundary for nSeq, so we don't have to build a huge nSeqLen * aSeqLen matrix
-	endPosNA, _, _ := self.calcScoreMainForward()
-	startPosNA, _, _ := self.calcScoreMainBackward()
+	endPosNA, endPosAA, _ := self.calcScoreMainForward()
+	startPosNA, startPosAA, _ := self.calcScoreMainBackward()
 	if endPosNA <= startPosNA {
 		return false
 	}
 	self.nSeqOffset = startPosNA - 1
+	self.aSeqOffset = startPosAA - 1
 	self.boundaryOnly = false
 	self.nSeq = self.nSeq[startPosNA-1 : endPosNA]
 	self.nSeqLen = len(self.nSeq)
+	self.aSeq = self.aSeq[startPosAA-1 : endPosAA]
+	self.aSeqLen = len(self.aSeq)
 	typedPosLen := scoreTypeCount * (self.nSeqLen + 1) * (self.aSeqLen + 1) * 2
 	self.scoreMatrix = make([]int, typedPosLen)
 	self.maxScorePosN, self.maxScorePosA, self.maxScore = self.calcScoreMainForward()

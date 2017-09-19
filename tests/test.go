@@ -99,20 +99,18 @@ func main() {
 		count      = COUNT
 		seqChan    = iterSequences(GBFILE, count)
 		seqChan2   = iterSequences(GBFILE, count)
-		resultChan = make(chan [3]string)
-		resultMap  = make(map[string][3]string)
-		genes      = [3]hiv1b.Gene{hiv1b.PR, hiv1b.RT, hiv1b.IN}
-		refs       = [3][]a.AminoAcid{d.HIV1BSEQ_PR, d.HIV1BSEQ_RT, d.HIV1BSEQ_IN}
-		fps        = [3]*os.File{}
+		resultChan = make(chan [1]string)
+		resultMap  = make(map[string][1]string)
+		genes      = [1]hiv1b.Gene{hiv1b.POL}
+		refs       = [1][]a.AminoAcid{d.HIV1BSEQ_POL}
+		fps        = [1]*os.File{}
 	)
-	fps[0], _ = os.Create(fmt.Sprintf(RESULTFILES, "PR"))
-	fps[1], _ = os.Create(fmt.Sprintf(RESULTFILES, "RT"))
-	fps[2], _ = os.Create(fmt.Sprintf(RESULTFILES, "IN"))
+	fps[0], _ = os.Create(fmt.Sprintf(RESULTFILES, "POL"))
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
-		go func(idx int, rChan chan<- [3]string) {
+		go func(idx int, rChan chan<- [1]string) {
 			var (
-				scoreHandlers [3]s.ScoreHandler
+				scoreHandlers [1]s.ScoreHandler
 			)
 			for i, gene := range genes {
 				scoreHandlers[i] = hiv1b.NewAsScoreHandler(
@@ -125,9 +123,9 @@ func main() {
 				)
 			}
 			for seq, ok := <-seqChan; ok; seq, ok = <-seqChan {
-				result := [3]string{}
-				for i := 0; i < 3; i++ {
-					aligned, success := alignment.NewAlignment(seq.Name, seq.Sequence, refs[i], scoreHandlers[i])
+				result := [1]string{}
+				for i := 0; i < len(genes); i++ {
+					aligned, success := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
 					if !success {
 						continue
 					}
@@ -139,7 +137,7 @@ func main() {
 			wg.Done()
 		}(i, resultChan)
 	}
-	go func(rChan chan<- [3]string) {
+	go func(rChan chan<- [1]string) {
 		wg.Wait()
 		close(rChan)
 	}(resultChan)

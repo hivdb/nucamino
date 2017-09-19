@@ -10,15 +10,11 @@ import (
 type Gene uint8
 
 const (
-	PR Gene = iota
-	RT
-	IN
+	POL Gene = iota
 )
 
 var GeneLookup = map[string]Gene{
-	"PR": PR,
-	"RT": RT,
-	"IN": IN,
+	"POL": POL,
 }
 
 const negInf = -int((^uint(0))>>1) - 1
@@ -55,7 +51,7 @@ func (self *HIV1BScoreHandler) GetGapExtensionScore() int {
 }
 
 func (self *HIV1BScoreHandler) IsPositionalIndelScoreSupported() bool {
-	return self.gene == RT
+	return self.gene == POL
 }
 
 func (self *HIV1BScoreHandler) GetConstantIndelCodonScore() (int, int) {
@@ -64,16 +60,17 @@ func (self *HIV1BScoreHandler) GetConstantIndelCodonScore() (int, int) {
 
 func (self *HIV1BScoreHandler) GetPositionalIndelCodonScore(position int, isInsertion bool) (int, int) {
 	score := self.indelCodonOpeningBonus
-	if self.gene == RT {
+	if self.gene == POL {
+		// offset = 56prePR + 99PR = 155
 		if isInsertion {
 			switch position {
-			case 65, 66, 67:
+			case 155 + 65, 155 + 66, 155 + 67:
 				score = -9 * self.scoreScale
 				break
-			case 63, 64, 68, 70, 71, 72, 73:
+			case 155 + 63, 155 + 64, 155 + 68, 155 + 70, 155 + 71, 155 + 72, 155 + 73:
 				score = -3 * self.scoreScale
 				break
-			case 69:
+			case 155 + 69:
 				score = 6 * self.scoreScale
 				break
 			}

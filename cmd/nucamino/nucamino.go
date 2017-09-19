@@ -1,7 +1,9 @@
 package main
 
-import "os"
-import "github.com/jessevdk/go-flags"
+import (
+	"github.com/jessevdk/go-flags"
+	"os"
+)
 
 type FileOptions struct {
 	Input  flags.Filename `short:"i" long:"input" required:"yes" value-name:"INPUT" description:"FASTA file contains one or more DNA sequences" default:"-"`
