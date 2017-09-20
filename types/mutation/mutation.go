@@ -8,49 +8,82 @@ import (
 )
 
 type Mutation struct {
-	position       int
-	codon          *c.Codon
-	reference      a.AminoAcid
-	isInsertion    bool
-	isDeletion     bool
-	isPartial      bool
-	control        string
-	insertedCodons []c.Codon
+	Position               int
+	CodonText              string
+	AminoAcidText          string
+	codon                  *c.Codon
+	ReferenceText          string
+	reference              a.AminoAcid
+	IsInsertion            bool
+	IsDeletion             bool
+	IsPartial              bool
+	Control                string
+	InsertedCodonsText     string
+	InsertedAminoAcidsText string
+	insertedCodons         []c.Codon
 }
 
 func New(
 	position int, codon c.Codon,
 	reference a.AminoAcid, isPartial bool, control string) *Mutation {
+	codonText := []rune(codon.ToString())
+	if isPartial {
+		for pos, char := range control {
+			if char == '-' {
+				codonText[pos] = ' '
+			}
+		}
+	}
 	return &Mutation{
-		position:  position,
-		codon:     &codon,
-		reference: reference,
-		isPartial: isPartial,
-		control:   control,
+		Position:      position,
+		codon:         &codon,
+		CodonText:     string(codonText),
+		AminoAcidText: codon.ToAminoAcidsText(),
+		reference:     reference,
+		ReferenceText: a.ToString(reference),
+		IsPartial:     isPartial,
+		Control:       control,
 	}
 }
 
 func NewInsertion(
 	position int, codon c.Codon, reference a.AminoAcid,
 	insertedCodons []c.Codon, control string) *Mutation {
-	return &Mutation{
-		position:       position,
-		codon:          &codon,
-		reference:      reference,
-		isInsertion:    true,
-		control:        control,
-		insertedCodons: insertedCodons,
+
+	var (
+		insertedCodonsText     string
+		insertedAminoAcidsText string
+	)
+	for _, insCodon := range insertedCodons {
+		insertedCodonsText += insCodon.ToString()
+		insertedAAs := insCodon.ToAminoAcidsText()
+		if len(insertedAAs) > 1 {
+			insertedAminoAcidsText += "[" + insertedAAs + "]"
+		} else {
+			insertedAminoAcidsText += insertedAAs
+		}
 	}
+
+	mutation := New(position, codon, reference, false, control)
+	mutation.IsInsertion = true
+	mutation.insertedCodons = insertedCodons
+	mutation.InsertedCodonsText = insertedCodonsText
+	mutation.InsertedAminoAcidsText = insertedAminoAcidsText
+
+	return mutation
 }
 
 func NewDeletion(
 	position int, reference a.AminoAcid) *Mutation {
 	return &Mutation{
-		position:   position,
-		codon:      nil,
-		reference:  reference,
-		isDeletion: true,
-		control:    "---",
+		Position:      position,
+		codon:         nil,
+		CodonText:     "",
+		AminoAcidText: "",
+		reference:     reference,
+		ReferenceText: a.ToString(reference),
+		IsDeletion:    true,
+		Control:       "---",
 	}
 }
 
@@ -107,58 +140,25 @@ func MakeMutation(position int, nas []n.NucleicAcid, ref a.AminoAcid) *Mutation 
 	return mutation
 }
 
-func (self *Mutation) GetPosition() int {
-	return self.position
-}
-
-func (self *Mutation) IsInsertion() bool {
-	return self.isInsertion
-}
-
-func (self *Mutation) IsDeletion() bool {
-	return self.isDeletion
-}
-
-func (self *Mutation) GetCodon() c.Codon {
-	return *self.codon
-}
-
-func (self *Mutation) GetControl() string {
-	return self.control
-}
-
-func (self *Mutation) GetInsertedCodons() []c.Codon {
-	return self.insertedCodons
-}
-
-func (self *Mutation) GetReference() a.AminoAcid {
-	return self.reference
-}
+func (self *Mutation) GetCodon() c.Codon            { return *self.codon }
+func (self *Mutation) GetReference() a.AminoAcid    { return self.reference }
+func (self *Mutation) GetInsertedCodons() []c.Codon { return self.insertedCodons }
 
 func (self *Mutation) ToString() string {
-	r := fmt.Sprintf("%s%d", a.ToString(self.reference), self.position)
+	r := fmt.Sprintf("%s%d", self.ReferenceText, self.Position)
 	nas := ""
-	if self.isDeletion {
+	if self.IsDeletion {
 		r += "-"
 	} else {
-		nas += ":" + self.codon.ToString()
-		if self.isPartial {
+		nas += ":" + self.CodonText
+		if self.IsPartial {
 			r += "X" // mutation contains del gap doesn't get displayed
 		} else {
-			r += self.codon.ToAminoAcidsText()
+			r += self.AminoAcidText
 		}
-		if self.isInsertion {
-			r += "_"
-			nas += "_"
-			for _, insCodon := range self.insertedCodons {
-				insertedAAs := insCodon.ToAminoAcidsText()
-				if len(insertedAAs) > 1 {
-					r += "[" + insertedAAs + "]"
-				} else {
-					r += insertedAAs
-				}
-				nas += insCodon.ToString()
-			}
+		if self.IsInsertion {
+			r += "_" + self.InsertedAminoAcidsText
+			nas += "_" + self.InsertedCodonsText
 		}
 	}
 	return r + nas

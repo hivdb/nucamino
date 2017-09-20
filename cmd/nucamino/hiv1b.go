@@ -13,6 +13,7 @@ type HIV1BOptions struct {
 	GapOpeningPenalty        int         `long:"gap-opening-penalty" value-name:"PENALTY" description:"penalty score when a gap was opened" default:"10"`
 	GapExtensionPenalty      int         `long:"gap-extension-penalty" value-name:"PENALTY" description:"penalty score when a gap was extended" default:"2"`
 	Goroutines               int         `long:"goroutines" value-name:"GOROUTINES" description:"number of goroutines the alignment will use. Use the core number when equals to 0" default:"0"`
+	OutputFormat             string      `long:"output-format" value-name:"OUTPUT_FORMAT" choice:"tsv" choice:"json" description:"output format of the alignment result" default:"tsv"`
 	Files                    FileOptions `group:"File Options"`
 }
 
@@ -23,7 +24,8 @@ func (self *HIV1BOptions) Execute(args []string) error {
 		string(self.Files.Input), string(self.Files.Output), self.Genes,
 		self.IndelCodonOpeningBonus, self.IndelCodonExtensionBonus,
 		self.StopCodonPenalty, self.GapOpeningPenalty,
-		self.GapExtensionPenalty, self.Goroutines, self.Quiet)
+		self.GapExtensionPenalty, self.Goroutines,
+		self.OutputFormat, self.Quiet)
 	return nil
 }
 

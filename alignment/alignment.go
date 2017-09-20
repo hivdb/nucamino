@@ -1,6 +1,7 @@
 package alignment
 
 import (
+	"errors"
 	s "github.com/hivdb/nucamino/scorehandler"
 	a "github.com/hivdb/nucamino/types/amino"
 	f "github.com/hivdb/nucamino/types/frameshift"
@@ -63,7 +64,7 @@ type AlignmentReport struct {
 	NucleicAcidsLine string
 }
 
-func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.ScoreHandler) (*Alignment, bool) {
+func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.ScoreHandler) (*Alignment, error) {
 	nSeqLen := len(nSeq)
 	aSeqLen := len(aSeq)
 	supportPositionalIndel := scoreHandler.IsPositionalIndelScoreSupported()
@@ -86,9 +87,9 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.Score
 
 	success := result.align()
 	if success {
-		return result, true
+		return result, nil
 	} else {
-		return nil, false
+		return nil, errors.New("sequence misaligned")
 	}
 }
 
@@ -173,15 +174,14 @@ func (self *Alignment) GetReport() AlignmentReport {
 				partialCLine += ":::"
 			} else {
 				if mutation != nil {
-					partialCLine += mutation.GetControl()
-					if mutation.IsDeletion() {
+					partialCLine += mutation.Control
+					if mutation.IsDeletion {
 						partialNLine += "   "
 						partialALine += padRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
 					} else {
-						codon := mutation.GetCodon()
-						partialNLine += codon.ToString()
+						partialNLine += mutation.CodonText
 						partialALine += padRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
-						if mutation.IsInsertion() {
+						if mutation.IsInsertion {
 							for _, insCodon := range mutation.GetInsertedCodons() {
 								partialNLine += insCodon.ToString()
 								partialALine += "   "
@@ -190,10 +190,10 @@ func (self *Alignment) GetReport() AlignmentReport {
 					}
 				}
 			}
-			if frameshift != nil && frameshift.IsInsertion() {
-				partialNLine += n.WriteString(frameshift.GetNucleicAcids())
-				partialALine += strings.Repeat(" ", frameshift.GetGapLength())
-				partialCLine += strings.Repeat("+", frameshift.GetGapLength())
+			if frameshift != nil && frameshift.IsInsertion {
+				partialNLine += frameshift.NucleicAcidsText
+				partialALine += strings.Repeat(" ", frameshift.GapLength)
+				partialCLine += strings.Repeat("+", frameshift.GapLength)
 			}
 			/* end */
 
@@ -273,6 +273,10 @@ func (self *Alignment) align() bool {
 	self.boundaryOnly = true
 	// set boundary for nSeq, so we don't have to build a huge nSeqLen * aSeqLen matrix
 	endPosNA, endPosAA, _ := self.calcScoreMainForward()
+	self.nSeq = self.nSeq[:endPosNA]
+	self.nSeqLen = len(self.nSeq)
+	self.aSeq = self.aSeq[:endPosAA]
+	self.aSeqLen = len(self.aSeq)
 	startPosNA, startPosAA, _ := self.calcScoreMainBackward()
 	if endPosNA <= startPosNA {
 		return false
@@ -280,9 +284,9 @@ func (self *Alignment) align() bool {
 	self.nSeqOffset = startPosNA - 1
 	self.aSeqOffset = startPosAA - 1
 	self.boundaryOnly = false
-	self.nSeq = self.nSeq[startPosNA-1 : endPosNA]
+	self.nSeq = self.nSeq[startPosNA-1:]
 	self.nSeqLen = len(self.nSeq)
-	self.aSeq = self.aSeq[startPosAA-1 : endPosAA]
+	self.aSeq = self.aSeq[startPosAA-1:]
 	self.aSeqLen = len(self.aSeq)
 	typedPosLen := scoreTypeCount * (self.nSeqLen + 1) * (self.aSeqLen + 1) * 2
 	self.scoreMatrix = make([]int, typedPosLen)

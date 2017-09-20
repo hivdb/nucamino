@@ -26,7 +26,7 @@ func ReadSequences(reader io.Reader) []Sequence {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, ";") {
+		if strings.HasPrefix(line, ";") || strings.HasPrefix(line, "#") {
 			continue
 		} else if strings.HasPrefix(line, ">") {
 			if name != "" {

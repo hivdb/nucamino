@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	json "encoding/json"
 	"fmt"
 	"github.com/hivdb/nucamino/alignment"
 	d "github.com/hivdb/nucamino/data"
@@ -14,33 +15,6 @@ import (
 	"runtime"
 	"sync"
 )
-
-func reportToTSVRow(seqName string, r alignment.AlignmentReport) string {
-	v := fmt.Sprintf(
-		"%s\t%d\t%d\t%d\t%d\t%s\t%s",
-		seqName,
-		r.FirstAA, r.LastAA,
-		r.FirstNA, r.LastNA,
-		func() string {
-			var muts bytes.Buffer
-			for _, mut := range r.Mutations {
-				muts.WriteString(mut.ToString())
-				muts.WriteString(",")
-			}
-			muts.Truncate(muts.Len() - 1)
-			return muts.String()
-		}(),
-		func() string {
-			var fss bytes.Buffer
-			for _, fs := range r.FrameShifts {
-				fss.WriteString(fs.ToString())
-				fss.WriteString(",")
-			}
-			fss.Truncate(fss.Len() - 1)
-			return fss.String()
-		}())
-	return v
-}
 
 type alignmentResult struct {
 	Name   string
@@ -65,6 +39,9 @@ func writeTSV(
 
 	for _, seq := range seqs {
 		result := resultMap[seq.Name]
+		if result == nil {
+			continue
+		}
 		file.WriteString(seq.Name)
 		for i := 0; i < genesCount; i++ {
 			r := result[i].Report
@@ -100,6 +77,30 @@ func writeTSV(
 	}
 }
 
+func writeJSON(
+	file *os.File, textGenes []string,
+	seqs []fastareader.Sequence, resultMap map[string][]alignmentResult) {
+
+	finalResultMap := make(map[string][]alignmentResult)
+	genesCount := len(textGenes)
+
+	for i := 0; i < genesCount; i++ {
+		textGene := textGenes[i]
+		for _, seq := range seqs {
+			seqResult := resultMap[seq.Name]
+			if seqResult != nil {
+				seqGeneResult := seqResult[i]
+				finalResultMap[textGene] = append(finalResultMap[textGene], seqGeneResult)
+			}
+		}
+	}
+	result, err := json.MarshalIndent(finalResultMap, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	file.Write(result)
+}
+
 func seqSlice2Chan(s []fastareader.Sequence, bufferSize int) chan fastareader.Sequence {
 	c := make(chan fastareader.Sequence, bufferSize)
 	go func() {
@@ -120,7 +121,8 @@ func PerformAlignment(
 	stopCodonPenalty int,
 	gapOpeningPenalty int,
 	gapExtensionPenalty int,
-	goroutines int, quiet bool) {
+	goroutines int,
+	outputFormat string, quiet bool) {
 
 	runtime.LockOSThread()
 	numCPU := runtime.NumCPU()
@@ -189,8 +191,9 @@ func PerformAlignment(
 			for seq := range seqChan {
 				result := make([]alignmentResult, genesCount)
 				for i := 0; i < genesCount; i++ {
-					aligned, success := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
-					if !success {
+					aligned, err := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
+					if err != nil {
+						logger.Printf("%s: %s", seq.Name, err)
 						continue
 					}
 					r := aligned.GetReport()
@@ -214,7 +217,14 @@ func PerformAlignment(
 	for result := range resultChan {
 		resultMap[result[0].Name] = result
 	}
-	writeTSV(output, textGenes, seqs, resultMap)
+	switch outputFormat {
+	case "tsv":
+		writeTSV(output, textGenes, seqs, resultMap)
+		break
+	case "json":
+		writeJSON(output, textGenes, seqs, resultMap)
+		break
+	}
 	if !quiet && outputFileName != "-" {
 		logger.Printf("Created alignment result file %s.", outputFileName)
 	}

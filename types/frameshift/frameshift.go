@@ -13,20 +13,26 @@ const (
 )
 
 type FrameShift struct {
-	position  int
-	nas       []n.NucleicAcid
-	indel     Indel
-	gapLength int
+	Position         int
+	nas              []n.NucleicAcid
+	NucleicAcidsText string
+	indel            Indel
+	IsInsertion      bool
+	IsDeletion       bool
+	GapLength        int
 }
 
 func New(
 	position int, nas []n.NucleicAcid,
 	indel Indel, gapLength int) *FrameShift {
 	return &FrameShift{
-		position:  position,
-		nas:       nas,
-		indel:     indel,
-		gapLength: gapLength,
+		Position:         position,
+		nas:              nas,
+		NucleicAcidsText: n.WriteString(nas),
+		indel:            indel,
+		IsInsertion:      indel == INSERTION,
+		IsDeletion:       indel == DELETION,
+		GapLength:        gapLength,
 	}
 }
 
@@ -56,34 +62,14 @@ func MakeFrameShift(position int, allNAs []n.NucleicAcid) *FrameShift {
 	return frameshift
 }
 
-func (self *FrameShift) GetPosition() int {
-	return self.position
-}
-
-func (self *FrameShift) GetNucleicAcids() []n.NucleicAcid {
-	return self.nas
-}
-
-func (self *FrameShift) IsInsertion() bool {
-	return bool(self.indel)
-}
-
-func (self *FrameShift) IsDeletion() bool {
-	return !bool(self.indel)
-}
-
-func (self *FrameShift) GetGapLength() int {
-	return self.gapLength
-}
-
 func (self *FrameShift) ToString() string {
 	indel := "del"
-	if self.indel == INSERTION {
+	if self.IsInsertion {
 		indel = "ins"
 	}
-	r := fmt.Sprintf("%d%s%dbp", self.position, indel, self.gapLength)
-	if self.indel == INSERTION {
-		r += "_" + n.WriteString(self.nas)
+	r := fmt.Sprintf("%d%s%dbp", self.Position, indel, self.GapLength)
+	if self.IsInsertion {
+		r += "_" + self.NucleicAcidsText
 	}
 	return r
 }

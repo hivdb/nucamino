@@ -125,8 +125,8 @@ func main() {
 			for seq, ok := <-seqChan; ok; seq, ok = <-seqChan {
 				result := [1]string{}
 				for i := 0; i < len(genes); i++ {
-					aligned, success := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
-					if !success {
+					aligned, err := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
+					if err != nil {
 						continue
 					}
 					r := aligned.GetReport()
