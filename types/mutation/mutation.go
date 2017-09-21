@@ -9,6 +9,7 @@ import (
 
 type Mutation struct {
 	Position               int
+	NAPosition             int
 	CodonText              string
 	AminoAcidText          string
 	codon                  *c.Codon
@@ -24,7 +25,7 @@ type Mutation struct {
 }
 
 func New(
-	position int, codon c.Codon,
+	position, naPosition int, codon c.Codon,
 	reference a.AminoAcid, isPartial bool, control string) *Mutation {
 	codonText := []rune(codon.ToString())
 	if isPartial {
@@ -36,6 +37,7 @@ func New(
 	}
 	return &Mutation{
 		Position:      position,
+		NAPosition:    naPosition,
 		codon:         &codon,
 		CodonText:     string(codonText),
 		AminoAcidText: codon.ToAminoAcidsText(),
@@ -47,7 +49,8 @@ func New(
 }
 
 func NewInsertion(
-	position int, codon c.Codon, reference a.AminoAcid,
+	position, naPosition int, codon c.Codon,
+	reference a.AminoAcid,
 	insertedCodons []c.Codon, control string) *Mutation {
 
 	var (
@@ -64,7 +67,7 @@ func NewInsertion(
 		}
 	}
 
-	mutation := New(position, codon, reference, false, control)
+	mutation := New(position, naPosition, codon, reference, false, control)
 	mutation.IsInsertion = true
 	mutation.insertedCodons = insertedCodons
 	mutation.InsertedCodonsText = insertedCodonsText
@@ -74,9 +77,10 @@ func NewInsertion(
 }
 
 func NewDeletion(
-	position int, reference a.AminoAcid) *Mutation {
+	position, naPosition int, reference a.AminoAcid) *Mutation {
 	return &Mutation{
 		Position:      position,
+		NAPosition:    naPosition,
 		codon:         nil,
 		CodonText:     "",
 		AminoAcidText: "",
@@ -87,7 +91,9 @@ func NewDeletion(
 	}
 }
 
-func MakeMutation(position int, nas []n.NucleicAcid, ref a.AminoAcid) *Mutation {
+func MakeMutation(
+	position, naPosition int,
+	nas []n.NucleicAcid, ref a.AminoAcid) *Mutation {
 	lenNAs := len(nas)
 	var (
 		control  string
@@ -118,9 +124,11 @@ func MakeMutation(position int, nas []n.NucleicAcid, ref a.AminoAcid) *Mutation 
 				insertedCodons[idx] = c.Codon{nas[p], nas[p+1], nas[p+2]}
 				control += "+++"
 			}
-			mutation = NewInsertion(position, codon, ref, insertedCodons, control)
+			mutation = NewInsertion(
+				position, naPosition, codon, ref, insertedCodons, control)
 		} else if !allMatched {
-			mutation = New(position, codon, ref, false, control)
+			mutation = New(
+				position, naPosition, codon, ref, false, control)
 		}
 	} else if lenNAs > 0 {
 		// codon missed 1 or 2 NAs
@@ -132,10 +140,10 @@ func MakeMutation(position int, nas []n.NucleicAcid, ref a.AminoAcid) *Mutation 
 				control += "."
 			}
 		}
-		mutation = New(position, codon, ref, true, control)
+		mutation = New(position, naPosition, codon, ref, true, control)
 	} else if lenNAs == 0 {
 		// deletion
-		mutation = NewDeletion(position, ref)
+		mutation = NewDeletion(position, naPosition, ref)
 	}
 	return mutation
 }

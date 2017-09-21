@@ -14,6 +14,7 @@ const (
 
 type FrameShift struct {
 	Position         int
+	NAPosition       int
 	nas              []n.NucleicAcid
 	NucleicAcidsText string
 	indel            Indel
@@ -23,10 +24,11 @@ type FrameShift struct {
 }
 
 func New(
-	position int, nas []n.NucleicAcid,
+	position, naPosition int, nas []n.NucleicAcid,
 	indel Indel, gapLength int) *FrameShift {
 	return &FrameShift{
 		Position:         position,
+		NAPosition:       naPosition,
 		nas:              nas,
 		NucleicAcidsText: n.WriteString(nas),
 		indel:            indel,
@@ -36,7 +38,7 @@ func New(
 	}
 }
 
-func MakeFrameShift(position int, allNAs []n.NucleicAcid) *FrameShift {
+func MakeFrameShift(position, naPosition int, allNAs []n.NucleicAcid) *FrameShift {
 	//fmt.Printf("%d %s %s\n", position, n.WriteString(nas), a.WriteString(refs))
 	lenAllNAs := len(allNAs)
 	var frameshift *FrameShift
@@ -45,6 +47,7 @@ func MakeFrameShift(position int, allNAs []n.NucleicAcid) *FrameShift {
 	} else if lenAllNAs > 3 {
 		frameshift = New(
 			position,
+			naPosition+lenAllNAs/3*3,
 			allNAs[lenAllNAs/3*3:],
 			INSERTION,
 			lenAllNAs%3)
@@ -55,6 +58,7 @@ func MakeFrameShift(position int, allNAs []n.NucleicAcid) *FrameShift {
 		// but not two separated ones.
 		frameshift = New(
 			position,
+			naPosition+lenAllNAs-1,
 			nil,
 			DELETION,
 			3-lenAllNAs)

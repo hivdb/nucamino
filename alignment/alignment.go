@@ -7,6 +7,7 @@ import (
 	f "github.com/hivdb/nucamino/types/frameshift"
 	m "github.com/hivdb/nucamino/types/mutation"
 	n "github.com/hivdb/nucamino/types/nucleic"
+	sortutil "github.com/pmylund/sortutil"
 	//"fmt"
 	"strings"
 )
@@ -52,6 +53,12 @@ type Alignment struct {
 	boundaryOnly                  bool
 }
 
+type AlignedSite struct {
+	PosAA    int
+	PosNA    int
+	LengthNA int
+}
+
 type AlignmentReport struct {
 	FirstAA          int
 	FirstNA          int
@@ -59,6 +66,7 @@ type AlignmentReport struct {
 	LastNA           int
 	Mutations        []m.Mutation
 	FrameShifts      []f.FrameShift
+	AlignedSites     []AlignedSite
 	AminoAcidsLine   string
 	ControlLine      string
 	NucleicAcidsLine string
@@ -117,6 +125,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 		firstAA, lastAA, firstNA, lastNA int
 		mutList                          = make([]m.Mutation, 0, 10)
 		fsList                           = make([]f.FrameShift, 0, 3)
+		siteList                         = make([]AlignedSite, 0, 50)
 		LastPosN                         = -1
 		LastPosA                         = -1
 		lastScoreType                    = GENERAL
@@ -158,14 +167,36 @@ func (self *Alignment) GetReport() AlignmentReport {
 
 			if LastPosA > posA {
 				hasUnprocessedNAs = false
-				mutation = m.MakeMutation(posA+1+self.aSeqOffset, self.nSeq[posN:LastPosN], self.aSeq[posA])
-				frameshift = f.MakeFrameShift(posA+1+self.aSeqOffset, self.nSeq[posN:LastPosN])
+				absPosA := posA + 1 + self.aSeqOffset
+				absPosN := posN + 1 + self.nSeqOffset
+				lenNA := 3
+				mutation = m.MakeMutation(
+					absPosA, absPosN,
+					self.nSeq[posN:LastPosN], self.aSeq[posA])
+				frameshift = f.MakeFrameShift(
+					absPosA, absPosN,
+					self.nSeq[posN:LastPosN])
 				if mutation != nil {
 					mutList = append(mutList, *mutation)
+					if mutation.IsDeletion {
+						lenNA -= 3
+					} else if mutation.IsInsertion {
+						lenNA += len(mutation.InsertedCodonsText)
+					}
 				}
 				if frameshift != nil {
 					fsList = append(fsList, *frameshift)
+					if frameshift.IsInsertion {
+						lenNA += frameshift.GapLength
+					} else {
+						lenNA -= frameshift.GapLength
+					}
 				}
+				siteList = append(siteList, AlignedSite{
+					PosAA:    absPosA,
+					PosNA:    absPosN,
+					LengthNA: lenNA,
+				})
 			}
 			/* those are only for generate three lines */
 			if LastPosA > posA && LastPosN-posN > 2 && mutation == nil {
@@ -229,6 +260,9 @@ func (self *Alignment) GetReport() AlignmentReport {
 	}
 	print("\n")
 	print("Total Score: ", self.maxScore, "\n")*/
+	sortutil.Reverse(mutList)
+	sortutil.Reverse(fsList)
+	sortutil.Reverse(siteList)
 	return AlignmentReport{
 		FirstAA:          firstAA + self.aSeqOffset,
 		FirstNA:          firstNA + self.nSeqOffset,
@@ -236,6 +270,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 		LastNA:           lastNA + self.nSeqOffset,
 		Mutations:        mutList,
 		FrameShifts:      fsList,
+		AlignedSites:     siteList,
 		AminoAcidsLine:   aLine,
 		ControlLine:      cLine,
 		NucleicAcidsLine: nLine,
