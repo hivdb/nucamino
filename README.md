@@ -32,7 +32,7 @@ Download Binaries
 
 For convenience' sake, we provide pre-compiled executables for mainstream
 systems. These binary files can be found in release pages. The current
-release page is [v0.1.1][latest].
+release page is [v0.1.2][latest].
 
 Usage
 -----
@@ -59,4 +59,4 @@ nucamino hiv1b --help
 [golang]: https://golang.org/
 [docker]: https://www.docker.com/
 [mingw]: http://www.mingw.org/
-[latest]: https://github.com/hivdb/NucAmino/releases/tag/v0.1.1
+[latest]: https://github.com/hivdb/NucAmino/releases/tag/v0.1.2
