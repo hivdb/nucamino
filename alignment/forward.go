@@ -152,9 +152,10 @@ func (self *Alignment) calcScoreForward(
 	posN int, posA int,
 	gScore11 int, gScore21 int, gScore31 int,
 	iScore00 int,
-	dScore00 int, dScore11 int, dScore21 int) (int, int) {
+	dScore00 int, dScore11 int, dScore21 int) (int, int, bool) {
 	var (
 		prevMatrixIdx int
+		isSimple      bool
 		score         = negInf
 	)
 	if posN == 0 || posA == 0 {
@@ -176,6 +177,7 @@ func (self *Alignment) calcScoreForward(
 		score = negInf
 		if cand := /* #1 */ gScore11 + mutScoreNN0 + q + r + r; cand > score {
 			score = cand
+			isSimple = false
 			if !self.boundaryOnly {
 				prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-1, posA-1) //, "--."
 			}
@@ -186,18 +188,21 @@ func (self *Alignment) calcScoreForward(
 			if cand := /* #2 */ gScore21 +
 				sh.GetSubstitutionScore(posA+self.aSeqOffset, prevNA, n.N, curNA, curAA) + q + r; cand > score {
 				score = cand
+				isSimple = false
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA-1) //, ".-."
 				}
 			}
 			if cand := /* #3 */ gScore21 + mutScoreN10 + q + r; cand > score {
 				score = cand
+				isSimple = false
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA-1) //, "-.."
 				}
 			}
 			if cand := /* #7 */ dScore11 + mutScoreNN0 + r + r; cand >= score {
 				score = cand
+				isSimple = false
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(DEL, posN-1, posA-1) //, "--."
 				}
@@ -208,6 +213,7 @@ func (self *Alignment) calcScoreForward(
 			if cand := /* #4 */ gScore31 +
 				sh.GetSubstitutionScore(posA+self.aSeqOffset, prevNA2, prevNA, curNA, curAA); cand > score {
 				score = cand
+				isSimple = true
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-3, posA-1) //, "..."
 				}
@@ -215,6 +221,7 @@ func (self *Alignment) calcScoreForward(
 
 			if cand := /* #8 */ dScore21 + mutScoreN10 + r; cand >= score {
 				score = cand
+				isSimple = false
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(DEL, posN-2, posA-1) //, "-.."
 				}
@@ -222,34 +229,40 @@ func (self *Alignment) calcScoreForward(
 		}
 		if cand := /* #9 */ iScore00; cand >= score {
 			score = cand
+			isSimple = false
 			if !self.boundaryOnly {
 				prevMatrixIdx = self.getMatrixIndex(INS, posN, posA) //, ""
 			}
 		}
 		if cand := /* #10 */ dScore00; cand >= score {
 			score = cand
+			isSimple = false
 			if !self.boundaryOnly {
 				prevMatrixIdx = self.getMatrixIndex(DEL, posN, posA) //, ""
 			}
 		}
 	}
-	return score, prevMatrixIdx
+	return score, prevMatrixIdx, isSimple
 }
 
-func (self *Alignment) calcScoreMainForward() (int, int, int) {
+func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 	var (
-		maxScore     = negInf
-		maxScorePosN = 0
-		maxScorePosA = 0
-		gScores      = make([]int, self.nSeqLen+1)
-		dScores      = make([]int, self.nSeqLen+1)
-		gScoresCur   = make([]int, self.nSeqLen+1)
-		dScoresCur   = make([]int, self.nSeqLen+1)
+		maxScore               = negInf
+		maxScorePosN           = 0
+		maxScorePosA           = 0
+		simplesCountAtMaxScore = 0
+		gScores                = make([]int, self.nSeqLen+1)
+		dScores                = make([]int, self.nSeqLen+1)
+		simplesCountMt         = make([]int, self.nSeqLen+1)
+		gScoresCur             = make([]int, self.nSeqLen+1)
+		dScoresCur             = make([]int, self.nSeqLen+1)
+		simplesCountMtCur      = make([]int, self.nSeqLen+1)
 
 		gScore30, gScore20 int
 		gScore00, gScore10 int
 		gScore01, gScore11 int
 		gScore21, gScore31 int
+		simplesCount       int
 
 		iScore30, iScore20 int
 		iScore00, iScore10 int
@@ -257,6 +270,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int) {
 		dScore00, dScore01 int
 		dScore11, dScore21 int
 		prevMtIdx          int
+		isSimple           bool
 	)
 
 	for j := 0; j <= self.aSeqLen; j++ {
@@ -278,6 +292,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int) {
 			}
 			if i > 2 {
 				gScore31 = gScores[i-3]
+				simplesCount = simplesCountMt[i-3]
 			}
 			iScore00, prevMtIdx = self.calcExtInsScoreForward(
 				i, j, gScore30,
@@ -298,12 +313,20 @@ func (self *Alignment) calcScoreMainForward() (int, int, int) {
 				self.setCachedScore(DEL, i, j, dScore00, prevMtIdx)
 			}
 
-			gScore00, prevMtIdx = self.calcScoreForward(
+			gScore00, prevMtIdx, isSimple = self.calcScoreForward(
 				i, j,
 				gScore11, gScore21, gScore31,
 				iScore00,
 				dScore00, dScore11, dScore21)
 
+			if isSimple {
+				simplesCount++
+				simplesCountMtCur[i] = simplesCount
+			} else {
+				// reset simplesCount
+				simplesCount = 0
+				simplesCountMtCur[i] = 0
+			}
 			gScoresCur[i] = gScore00
 
 			if !self.boundaryOnly {
@@ -314,6 +337,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int) {
 				maxScore = gScore00
 				maxScorePosN = i
 				maxScorePosA = j
+				simplesCountAtMaxScore = simplesCount
 			}
 
 			gScore30, gScore20, gScore10 = gScore20, gScore10, gScore00
@@ -321,8 +345,9 @@ func (self *Alignment) calcScoreMainForward() (int, int, int) {
 		}
 
 		gScores, gScoresCur = gScoresCur, gScores
+		simplesCountMt, simplesCountMtCur = simplesCountMtCur, simplesCountMt
 		dScores, dScoresCur = dScoresCur, dScores
 
 	}
-	return maxScorePosN, maxScorePosA, maxScore
+	return maxScorePosN, maxScorePosA, maxScore, simplesCountAtMaxScore
 }

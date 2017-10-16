@@ -2,13 +2,14 @@ package alignment
 
 import (
 	"errors"
+	// "fmt"
 	s "github.com/hivdb/nucamino/scorehandler"
 	a "github.com/hivdb/nucamino/types/amino"
 	f "github.com/hivdb/nucamino/types/frameshift"
 	m "github.com/hivdb/nucamino/types/mutation"
 	n "github.com/hivdb/nucamino/types/nucleic"
 	sortutil "github.com/pmylund/sortutil"
-	//"fmt"
+	// "os"
 	"strings"
 )
 
@@ -40,8 +41,8 @@ type Alignment struct {
 	aSeqLen                       int
 	nSeqOffset                    int
 	aSeqOffset                    int
-	maxScorePosN                  int
-	maxScorePosA                  int
+	endPosN                       int
+	endPosA                       int
 	maxScore                      int
 	scoreHandler                  s.ScoreHandler
 	scoreMatrix                   []int
@@ -51,6 +52,7 @@ type Alignment struct {
 	constIndelCodonOpeningScore   int
 	constIndelCodonExtensionScore int
 	boundaryOnly                  bool
+	isSimpleAlignment             bool
 }
 
 type AlignedSite struct {
@@ -60,16 +62,17 @@ type AlignedSite struct {
 }
 
 type AlignmentReport struct {
-	FirstAA          int
-	FirstNA          int
-	LastAA           int
-	LastNA           int
-	Mutations        []m.Mutation
-	FrameShifts      []f.FrameShift
-	AlignedSites     []AlignedSite
-	AminoAcidsLine   string
-	ControlLine      string
-	NucleicAcidsLine string
+	FirstAA           int
+	FirstNA           int
+	LastAA            int
+	LastNA            int
+	Mutations         []m.Mutation
+	FrameShifts       []f.FrameShift
+	AlignedSites      []AlignedSite
+	AminoAcidsLine    string
+	ControlLine       string
+	NucleicAcidsLine  string
+	IsSimpleAlignment bool
 }
 
 func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.ScoreHandler) (*Alignment, error) {
@@ -83,7 +86,6 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.Score
 		r:                             scoreHandler.GetGapExtensionScore(),
 		nSeq:                          nSeq,
 		aSeq:                          aSeq,
-		nSeqOffset:                    0,
 		nSeqLen:                       nSeqLen,
 		aSeqLen:                       aSeqLen,
 		scoreHandler:                  scoreHandler,
@@ -130,28 +132,36 @@ func (self *Alignment) GetReport() AlignmentReport {
 		LastPosA                         = -1
 		lastScoreType                    = GENERAL
 		hasUnprocessedNAs                = false
-		endMtIdx                         = self.getMatrixIndex(GENERAL, self.maxScorePosN, self.maxScorePosA)
-		prevMtIdx                        = -1
-		curMtIdx                         = endMtIdx
-		prevScore                        = endMtIdx
+		endMtIdx                         = self.getMatrixIndex(GENERAL, self.endPosN, self.endPosA)
 		startMtIdx                       = 0
 		singleMtLen                      = (self.nSeqLen + 1) * (self.aSeqLen + 1) * 2
 	)
 
-	for curMtIdx >= 0 && curMtIdx != prevMtIdx {
-		score := self.scoreMatrix[curMtIdx]
-		if score <= prevScore {
-			prevScore = score
-			startMtIdx = curMtIdx
+	if self.isSimpleAlignment {
+		startMtIdx = self.getMatrixIndex(GENERAL, 0, 0)
+	} else {
+		var (
+			score     int
+			curMtIdx  = endMtIdx
+			prevMtIdx = -1
+			prevScore = self.maxScore
+		)
+		for curMtIdx >= 0 && curMtIdx != prevMtIdx {
+			score = self.scoreMatrix[curMtIdx]
+			if score <= prevScore {
+				prevScore = score
+				startMtIdx = curMtIdx
+			}
+			prevMtIdx = curMtIdx
+			curMtIdx = self.scoreMatrix[curMtIdx+1]
 		}
-		prevMtIdx = curMtIdx
-		curMtIdx = self.scoreMatrix[curMtIdx+1]
 	}
+	// fmt.Fprintf(os.Stderr, "1,1 - %d,%d (%d)\n", self.endPosA, self.endPosN, singleMtLen)
 
 	for endMtIdx%singleMtLen >= startMtIdx%singleMtLen {
-		//score := self.scoreMatrix[endMtIdx]
+		// score := self.scoreMatrix[endMtIdx]
 		scoreType, posN, posA := self.getTypedPos(endMtIdx)
-		//fmt.Printf("%s (%d,%d,%d,%d,%d)\n", lastScoreType, LastPosN, posN, LastPosA, posA, score)
+		// fmt.Fprintf(os.Stderr, "%s (%d,%d,%d,%d)\n", lastScoreType, LastPosN, posN, LastPosA, posA)
 		if lastAA == 0 && lastNA == 0 {
 			lastAA, lastNA = posA, posN
 		}
@@ -232,7 +242,11 @@ func (self *Alignment) GetReport() AlignmentReport {
 			aLine = partialALine + aLine
 			cLine = partialCLine + cLine
 		}
-		endMtIdx = self.scoreMatrix[endMtIdx+1]
+		if self.isSimpleAlignment {
+			endMtIdx = self.getMatrixIndex(GENERAL, posN-3, posA-1)
+		} else {
+			endMtIdx = self.scoreMatrix[endMtIdx+1]
+		}
 		if lastScoreType == INS {
 			hasUnprocessedNAs = true
 		} else if !hasUnprocessedNAs {
@@ -264,16 +278,17 @@ func (self *Alignment) GetReport() AlignmentReport {
 	sortutil.Reverse(fsList)
 	sortutil.Reverse(siteList)
 	return AlignmentReport{
-		FirstAA:          firstAA + self.aSeqOffset,
-		FirstNA:          firstNA + self.nSeqOffset,
-		LastAA:           lastAA + self.aSeqOffset,
-		LastNA:           lastNA + self.nSeqOffset,
-		Mutations:        mutList,
-		FrameShifts:      fsList,
-		AlignedSites:     siteList,
-		AminoAcidsLine:   aLine,
-		ControlLine:      cLine,
-		NucleicAcidsLine: nLine,
+		FirstAA:           firstAA + self.aSeqOffset,
+		FirstNA:           firstNA + self.nSeqOffset,
+		LastAA:            lastAA + self.aSeqOffset,
+		LastNA:            lastNA + self.nSeqOffset,
+		Mutations:         mutList,
+		FrameShifts:       fsList,
+		AlignedSites:      siteList,
+		AminoAcidsLine:    aLine,
+		ControlLine:       cLine,
+		NucleicAcidsLine:  nLine,
+		IsSimpleAlignment: self.isSimpleAlignment,
 	}
 }
 
@@ -305,26 +320,33 @@ func (self *Alignment) getAA(aPos int) a.AminoAcid {
 }
 
 func (self *Alignment) align() bool {
+	var endPosN, endPosA, simplesCount int
 	self.boundaryOnly = true
 	// set boundary for nSeq, so we don't have to build a huge nSeqLen * aSeqLen matrix
-	endPosNA, endPosAA, _ := self.calcScoreMainForward()
-	self.nSeq = self.nSeq[:endPosNA]
+	endPosN, endPosA, self.maxScore, simplesCount = self.calcScoreMainForward()
+	self.nSeq = self.nSeq[:endPosN]
 	self.nSeqLen = len(self.nSeq)
-	self.aSeq = self.aSeq[:endPosAA]
+	self.aSeq = self.aSeq[:endPosA]
 	self.aSeqLen = len(self.aSeq)
-	startPosNA, startPosAA, _ := self.calcScoreMainBackward()
-	if endPosNA <= startPosNA {
+	startPosN, startPosA, _ := self.calcScoreMainBackward()
+	if endPosN <= startPosN {
 		return false
 	}
-	self.nSeqOffset = startPosNA - 1
-	self.aSeqOffset = startPosAA - 1
+	self.nSeqOffset = startPosN - 1
+	self.aSeqOffset = startPosA - 1
 	self.boundaryOnly = false
-	self.nSeq = self.nSeq[startPosNA-1:]
+	self.nSeq = self.nSeq[startPosN-1:]
 	self.nSeqLen = len(self.nSeq)
-	self.aSeq = self.aSeq[startPosAA-1:]
+	self.aSeq = self.aSeq[startPosA-1:]
 	self.aSeqLen = len(self.aSeq)
+	if endPosA-self.aSeqOffset == simplesCount {
+		self.isSimpleAlignment = true
+		self.endPosN = endPosN - self.nSeqOffset
+		self.endPosA = endPosA - self.aSeqOffset
+		return true
+	}
 	typedPosLen := scoreTypeCount * (self.nSeqLen + 1) * (self.aSeqLen + 1) * 2
 	self.scoreMatrix = make([]int, typedPosLen)
-	self.maxScorePosN, self.maxScorePosA, self.maxScore = self.calcScoreMainForward()
+	self.endPosN, self.endPosA, self.maxScore, _ = self.calcScoreMainForward()
 	return true
 }

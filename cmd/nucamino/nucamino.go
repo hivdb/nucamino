@@ -10,6 +10,10 @@ type FileOptions struct {
 	Output flags.Filename `short:"o" long:"output" required:"yes" value-name:"OUTPUT" description:"output destination of the alignment results" default:"-"`
 }
 
+type PprofOptions struct {
+	Pprof bool `long:"pprof" description:"output pprof benchmark result"`
+}
+
 var parser = flags.NewParser(nil, flags.Default)
 
 func main() {

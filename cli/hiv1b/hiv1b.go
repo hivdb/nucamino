@@ -189,6 +189,7 @@ func PerformAlignment(
 					gapExtensionPenalty)
 			}
 			for seq := range seqChan {
+				isSimpleAlignment := true
 				result := make([]alignmentResult, genesCount)
 				for i := 0; i < genesCount; i++ {
 					aligned, err := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
@@ -198,10 +199,15 @@ func PerformAlignment(
 					}
 					r := aligned.GetReport()
 					result[i] = alignmentResult{seq.Name, &r}
+					isSimpleAlignment = isSimpleAlignment && r.IsSimpleAlignment
 				}
 				rChan <- result
 				if !quiet {
-					fmt.Fprintf(os.Stderr, ".")
+					if isSimpleAlignment {
+						fmt.Fprintf(os.Stderr, ":")
+					} else {
+						fmt.Fprintf(os.Stderr, ".")
+					}
 				}
 			}
 			wg.Done()
