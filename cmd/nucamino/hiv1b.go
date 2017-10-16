@@ -6,7 +6,7 @@ import (
 
 type HIV1BOptions struct {
 	Quiet                    bool        `short:"q" long:"quiet" description:"hide non-error information output"`
-	Genes                    []string    `short:"g" long:"gene" required:"yes" choice:"POL" description:"gene(s) the input sequences should be aligned with"`
+	Genes                    []string    `short:"g" long:"gene" required:"yes" choice:"GAG" choice:"POL" choice:"GP41" description:"gene(s) the input sequences should be aligned with"`
 	IndelCodonOpeningBonus   int         `long:"indel-codon-opening-bonus" value-name:"BONUS" description:"bonus score when a indel codon was opened" default:"0"`
 	IndelCodonExtensionBonus int         `long:"indel-codon-extension-bonus" value-name:"BONUS" description:"bonus score when a indel codon was extended" default:"2"`
 	StopCodonPenalty         int         `long:"stop-codon-penalty" value-name:"PENALTY" description:"penalty score when a stop codon was met" default:"4"`

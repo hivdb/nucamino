@@ -10,11 +10,15 @@ import (
 type Gene uint8
 
 const (
-	POL Gene = iota
+	GAG Gene = iota
+	POL
+	GP41
 )
 
 var GeneLookup = map[string]Gene{
-	"POL": POL,
+	"GAG":  GAG,
+	"POL":  POL,
+	"GP41": GP41,
 }
 
 const negInf = -int((^uint(0))>>1) - 1
