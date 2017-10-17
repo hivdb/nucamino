@@ -63,15 +63,19 @@ func (self *Alignment) calcDelScoreBackward(
 		//control = strings.Repeat("+", pos.n)
 	} else if posN < self.nSeqLen {
 		var (
-			delOpeningScore   int
-			delExtensionScore int
-			prevNA            n.NucleicAcid
-			curNA             = self.getNA(posN)
-			curAA             = self.getAA(posA)
-			q                 = self.q
-			r                 = self.r
-			mutScoreN0N       = sh.GetSubstitutionScore(posA, n.N, curNA, n.N, curAA)
+			delOpeningScore      int
+			delExtensionScore    int
+			tmpScore             int
+			prevNA               n.NucleicAcid
+			curNA                = self.getNA(posN)
+			curAA                = self.getAA(posA)
+			q                    = self.q
+			r                    = self.r
+			mutScoreN0N, present = sh.GetCachedSubstitutionScore(posA, n.N, curNA, n.N, curAA)
 		)
+		if !present {
+			mutScoreN0N = sh.GetSubstitutionScoreNoCache(posA, n.N, curNA, n.N, curAA)
+		}
 		score = negInf
 		if self.supportPositionalIndel {
 			delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA-1, false)
@@ -87,8 +91,11 @@ func (self *Alignment) calcDelScoreBackward(
 			score = cand // "---"
 		}
 
-		if cand := gScore11 +
-			sh.GetSubstitutionScore(posA, n.N, n.N, curNA, curAA) + q + r + r; cand > score {
+		tmpScore, present = sh.GetCachedSubstitutionScore(posA, n.N, n.N, curNA, curAA)
+		if !present {
+			tmpScore = sh.GetSubstitutionScoreNoCache(posA, n.N, n.N, curNA, curAA)
+		}
+		if cand := gScore11 + tmpScore + q + r + r; cand > score {
 			score = cand // "--."
 		}
 
@@ -102,8 +109,11 @@ func (self *Alignment) calcDelScoreBackward(
 				score = cand // "-.-"
 			}
 
-			if cand := gScore21 +
-				sh.GetSubstitutionScore(posA, n.N, curNA, prevNA, curAA) + q + r; cand >= score {
+			tmpScore, present = sh.GetCachedSubstitutionScore(posA, n.N, curNA, prevNA, curAA)
+			if !present {
+				tmpScore = sh.GetSubstitutionScoreNoCache(posA, n.N, curNA, prevNA, curAA)
+			}
+			if cand := gScore21 + tmpScore + q + r; cand >= score {
 				score = cand // "-.."
 			}
 		}
@@ -122,23 +132,33 @@ func (self *Alignment) calcScoreBackward(
 	} else {
 		var (
 			prevNA, prevNA2/*, prevNA3*/ n.NucleicAcid
-			mutScore01N int
-			sh          = self.scoreHandler
-			q           = self.q
-			r           = self.r
-			curNA       = self.getNA(posN)
-			curAA       = self.getAA(posA)
-			mutScore0NN = sh.GetSubstitutionScore(posA, curNA, n.N, n.N, curAA)
+			mutScore01N, tmpScore int
+			sh                    = self.scoreHandler
+			q                     = self.q
+			r                     = self.r
+			curNA                 = self.getNA(posN)
+			curAA                 = self.getAA(posA)
+			mutScore0NN, present  = sh.GetCachedSubstitutionScore(posA, curNA, n.N, n.N, curAA)
 		)
+		if !present {
+			mutScore0NN = sh.GetSubstitutionScoreNoCache(posA, curNA, n.N, n.N, curAA)
+		}
+
 		score = negInf
 		if cand := /* #1 */ gScore11 + mutScore0NN + q + r + r; cand > score {
 			score = cand // ".--"
 		}
 		if posN < self.nSeqLen-1 {
 			prevNA = self.getNA(posN + 1)
-			mutScore01N = sh.GetSubstitutionScore(posA, curNA, prevNA, n.N, curAA)
-			if cand := /* #2 */ gScore21 +
-				sh.GetSubstitutionScore(posA, curNA, n.N, prevNA, curAA) + q + r; cand > score {
+			mutScore01N, present = sh.GetCachedSubstitutionScore(posA, curNA, prevNA, n.N, curAA)
+			if !present {
+				mutScore01N = sh.GetSubstitutionScoreNoCache(posA, curNA, prevNA, n.N, curAA)
+			}
+			tmpScore, present = sh.GetCachedSubstitutionScore(posA, curNA, n.N, prevNA, curAA)
+			if !present {
+				tmpScore = sh.GetSubstitutionScoreNoCache(posA, curNA, n.N, prevNA, curAA)
+			}
+			if cand := /* #2 */ gScore21 + tmpScore + q + r; cand > score {
 				score = cand // ".-."
 			}
 			if cand := /* #3 */ gScore21 + mutScore01N + q + r; cand > score {
@@ -150,8 +170,11 @@ func (self *Alignment) calcScoreBackward(
 		}
 		if posN < self.nSeqLen-2 {
 			prevNA2 = self.getNA(posN + 2)
-			if cand := /* #4 */ gScore31 +
-				sh.GetSubstitutionScore(posA, curNA, prevNA, prevNA2, curAA); cand > score {
+			tmpScore, present = sh.GetCachedSubstitutionScore(posA, curNA, prevNA, prevNA2, curAA)
+			if !present {
+				tmpScore = sh.GetSubstitutionScoreNoCache(posA, curNA, prevNA, prevNA2, curAA)
+			}
+			if cand := /* #4 */ gScore31 + tmpScore; cand > score {
 				score = cand // "..."
 			}
 

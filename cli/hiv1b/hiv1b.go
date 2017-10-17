@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"github.com/hivdb/nucamino/alignment"
 	d "github.com/hivdb/nucamino/data"
-	s "github.com/hivdb/nucamino/scorehandler"
-	hiv1bhandler "github.com/hivdb/nucamino/scorehandler/hiv1b"
+	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
 	"github.com/hivdb/nucamino/utils/fastareader"
 	"log"
@@ -15,6 +14,37 @@ import (
 	"runtime"
 	"sync"
 )
+
+type Gene uint8
+
+const (
+	GAG Gene = iota
+	POL
+	GP41
+)
+
+var GeneLookup = map[string]Gene{
+	"GAG":  GAG,
+	"POL":  POL,
+	"GP41": GP41,
+}
+
+var AllPositionalIndelScores = map[Gene]map[int]int{
+	POL: map[int]int{
+		// 56prePR + 99PR = 155
+		155 + 63: -3,
+		155 + 64: -3,
+		155 + 65: -9,
+		155 + 66: -9,
+		155 + 67: -9,
+		155 + 68: -3,
+		155 + 69: 6, // group all insertions to RT69
+		155 + 70: -3,
+		155 + 71: -3,
+		155 + 72: -3,
+		155 + 73: -3,
+	},
+}
 
 type alignmentResult struct {
 	Name   string
@@ -158,10 +188,10 @@ func PerformAlignment(
 	}
 
 	genesCount := len(textGenes)
-	genes := make([]hiv1bhandler.Gene, genesCount)
+	genes := make([]Gene, genesCount)
 	refs := make([][]a.AminoAcid, genesCount)
 	for i, textGene := range textGenes {
-		genes[i] = hiv1bhandler.GeneLookup[textGene]
+		genes[i] = GeneLookup[textGene]
 		refs[i] = d.HIV1BRefLookup[textGene]
 	}
 
@@ -178,15 +208,17 @@ func PerformAlignment(
 	for i := 0; i < goroutines; i++ {
 		wg.Add(1)
 		go func(idx int, rChan chan<- []alignmentResult) {
-			scoreHandlers := make([]s.ScoreHandler, genesCount)
+			scoreHandlers := make([]h.GeneralScoreHandler, genesCount)
 			for i, gene := range genes {
-				scoreHandlers[i] = hiv1bhandler.NewAsScoreHandler(
-					gene,
-					indelCodonOpeningBonus,
-					indelCodonExtensionBonus,
+				positionalIndelScores, isPositionalIndelScoreSupported := AllPositionalIndelScores[gene]
+				scoreHandlers[i] = *h.New(
 					stopCodonPenalty,
 					gapOpeningPenalty,
-					gapExtensionPenalty)
+					gapExtensionPenalty,
+					indelCodonOpeningBonus,
+					indelCodonExtensionBonus,
+					positionalIndelScores,
+					isPositionalIndelScoreSupported)
 			}
 			for seq := range seqChan {
 				isSimpleAlignment := true

@@ -82,15 +82,19 @@ func (self *Alignment) calcDelScoreForward(
 		//control = strings.Repeat("+", pos.n)
 	} else if posN > 0 {
 		var (
-			delOpeningScore   int
-			delExtensionScore int
-			prevNA            n.NucleicAcid
-			curNA             = self.getNA(posN)
-			curAA             = self.getAA(posA)
-			q                 = self.q
-			r                 = self.r
-			mutScoreN0N       = sh.GetSubstitutionScore(posA+self.aSeqOffset, n.N, curNA, n.N, curAA)
+			delOpeningScore      int
+			delExtensionScore    int
+			tmpScore             int
+			prevNA               n.NucleicAcid
+			curNA                = self.getNA(posN)
+			curAA                = self.getAA(posA)
+			q                    = self.q
+			r                    = self.r
+			mutScoreN0N, present = sh.GetCachedSubstitutionScore(posA+self.aSeqOffset, n.N, curNA, n.N, curAA)
 		)
+		if !present {
+			mutScoreN0N = sh.GetSubstitutionScoreNoCache(posA+self.aSeqOffset, n.N, curNA, n.N, curAA)
+		}
 		score = negInf
 		if self.supportPositionalIndel {
 			delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA+self.aSeqOffset, false)
@@ -112,8 +116,11 @@ func (self *Alignment) calcDelScoreForward(
 			}
 		}
 
-		if cand := gScore11 +
-			sh.GetSubstitutionScore(posA+self.aSeqOffset, curNA, n.N, n.N, curAA) + q + r + r; cand > score {
+		tmpScore, present = sh.GetCachedSubstitutionScore(posA+self.aSeqOffset, curNA, n.N, n.N, curAA)
+		if !present {
+			tmpScore = sh.GetSubstitutionScoreNoCache(posA+self.aSeqOffset, curNA, n.N, n.N, curAA)
+		}
+		if cand := gScore11 + tmpScore + q + r + r; cand > score {
 			score = cand
 			if !self.boundaryOnly {
 				prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-1, posA-1) //, ".--"
@@ -136,8 +143,11 @@ func (self *Alignment) calcDelScoreForward(
 				}
 			}
 
-			if cand := gScore21 +
-				sh.GetSubstitutionScore(posA+self.aSeqOffset, prevNA, curNA, n.N, curAA) + q + r; cand >= score {
+			tmpScore, present = sh.GetCachedSubstitutionScore(posA+self.aSeqOffset, prevNA, curNA, n.N, curAA)
+			if !present {
+				tmpScore = sh.GetSubstitutionScoreNoCache(posA+self.aSeqOffset, prevNA, curNA, n.N, curAA)
+			}
+			if cand := gScore21 + tmpScore + q + r; cand >= score {
 				score = cand
 				if !self.boundaryOnly {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA-1) //, "..-"
@@ -166,14 +176,17 @@ func (self *Alignment) calcScoreForward(
 	} else {
 		var (
 			prevNA, prevNA2/*, prevNA3*/ n.NucleicAcid
-			mutScoreN10 int
-			sh          = self.scoreHandler
-			q           = self.q
-			r           = self.r
-			curNA       = self.getNA(posN)
-			curAA       = self.getAA(posA)
-			mutScoreNN0 = sh.GetSubstitutionScore(posA+self.aSeqOffset, n.N, n.N, curNA, curAA)
+			mutScoreN10, tmpScore int
+			sh                    = self.scoreHandler
+			q                     = self.q
+			r                     = self.r
+			curNA                 = self.getNA(posN)
+			curAA                 = self.getAA(posA)
+			mutScoreNN0, present  = sh.GetCachedSubstitutionScore(posA+self.aSeqOffset, n.N, n.N, curNA, curAA)
 		)
+		if !present {
+			mutScoreNN0 = sh.GetSubstitutionScoreNoCache(posA+self.aSeqOffset, n.N, n.N, curNA, curAA)
+		}
 		score = negInf
 		if cand := /* #1 */ gScore11 + mutScoreNN0 + q + r + r; cand > score {
 			score = cand
@@ -184,9 +197,15 @@ func (self *Alignment) calcScoreForward(
 		}
 		if posN > 1 {
 			prevNA = self.getNA(posN - 1)
-			mutScoreN10 = sh.GetSubstitutionScore(posA+self.aSeqOffset, n.N, prevNA, curNA, curAA)
-			if cand := /* #2 */ gScore21 +
-				sh.GetSubstitutionScore(posA+self.aSeqOffset, prevNA, n.N, curNA, curAA) + q + r; cand > score {
+			mutScoreN10, present = sh.GetCachedSubstitutionScore(posA+self.aSeqOffset, n.N, prevNA, curNA, curAA)
+			if !present {
+				mutScoreN10 = sh.GetSubstitutionScoreNoCache(posA+self.aSeqOffset, n.N, prevNA, curNA, curAA)
+			}
+			tmpScore, present = sh.GetCachedSubstitutionScore(posA+self.aSeqOffset, prevNA, n.N, curNA, curAA)
+			if !present {
+				tmpScore = sh.GetSubstitutionScoreNoCache(posA+self.aSeqOffset, prevNA, n.N, curNA, curAA)
+			}
+			if cand := /* #2 */ gScore21 + tmpScore + q + r; cand > score {
 				score = cand
 				isSimple = false
 				if !self.boundaryOnly {
@@ -210,8 +229,11 @@ func (self *Alignment) calcScoreForward(
 		}
 		if posN > 2 {
 			prevNA2 = self.getNA(posN - 2)
-			if cand := /* #4 */ gScore31 +
-				sh.GetSubstitutionScore(posA+self.aSeqOffset, prevNA2, prevNA, curNA, curAA); cand > score {
+			tmpScore, present = sh.GetCachedSubstitutionScore(posA+self.aSeqOffset, prevNA2, prevNA, curNA, curAA)
+			if !present {
+				tmpScore = sh.GetSubstitutionScoreNoCache(posA+self.aSeqOffset, prevNA2, prevNA, curNA, curAA)
+			}
+			if cand := /* #4 */ gScore31 + tmpScore; cand > score {
 				score = cand
 				isSimple = true
 				if !self.boundaryOnly {

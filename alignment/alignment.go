@@ -3,7 +3,7 @@ package alignment
 import (
 	"errors"
 	// "fmt"
-	s "github.com/hivdb/nucamino/scorehandler"
+	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
 	f "github.com/hivdb/nucamino/types/frameshift"
 	m "github.com/hivdb/nucamino/types/mutation"
@@ -44,7 +44,7 @@ type Alignment struct {
 	endPosN                       int
 	endPosA                       int
 	maxScore                      int
-	scoreHandler                  s.ScoreHandler
+	scoreHandler                  h.GeneralScoreHandler
 	scoreMatrix                   []int
 	q                             int
 	r                             int
@@ -75,7 +75,7 @@ type AlignmentReport struct {
 	IsSimpleAlignment bool
 }
 
-func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler s.ScoreHandler) (*Alignment, error) {
+func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler h.GeneralScoreHandler) (*Alignment, error) {
 	nSeqLen := len(nSeq)
 	aSeqLen := len(aSeq)
 	supportPositionalIndel := scoreHandler.IsPositionalIndelScoreSupported()
