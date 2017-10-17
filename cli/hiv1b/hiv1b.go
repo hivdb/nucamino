@@ -38,7 +38,7 @@ var AllPositionalIndelScores = map[Gene]map[int]int{
 		155 + 66: -9,
 		155 + 67: -9,
 		155 + 68: -3,
-		155 + 69: 6, // group all insertions to RT69
+		155 + 69: 6, // group all insertions to RT69/POL224
 		155 + 70: -3,
 		155 + 71: -3,
 		155 + 72: -3,

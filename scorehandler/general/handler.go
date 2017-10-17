@@ -1,7 +1,6 @@
 package general
 
 import (
-	// "fmt"
 	d "github.com/hivdb/nucamino/data"
 	a "github.com/hivdb/nucamino/types/amino"
 	c "github.com/hivdb/nucamino/types/codon"
@@ -9,6 +8,20 @@ import (
 )
 
 const negInf = -int((^uint(0))>>1) - 1
+
+// FNV algorithm was used to generated index number for the bloom filter
+const FNVPrime = 16777619
+const FNVOffsetBasis = 2166136261
+
+func simpleFNV1a(key int) int {
+	// http://www.isthe.com/chongo/tech/comp/fnv/index.html
+	// The possible values of "key" are between -50000 and 50000
+	// and there's no collision in this region
+
+	// This is not a strict implementation of FNV (the key is not an octet),
+	// however it reduced the collisions of bloom filter in HIV-1 POL case
+	return (FNVOffsetBasis ^ key) * FNVPrime
+}
 
 type GeneralScoreHandler struct {
 	scoreScale                       int
@@ -108,7 +121,8 @@ func (self *GeneralScoreHandler) GetPositionalIndelCodonScore(position int, isIn
 			sign = 1
 		}
 		key := sign * position
-		if self.positionalIndelScoresBloomFilter&key == key {
+		hashed := simpleFNV1a(key)
+		if self.positionalIndelScoresBloomFilter&hashed == hashed {
 			// the bloom filter removed most negatives; now search the real map
 			_score, ok := self.positionalIndelScores[key]
 			if ok {
@@ -139,9 +153,11 @@ func New(
 		}
 	}
 	positionalIndelScoresBloomFilter := 0
-	for key, _ := range positionalIndelScores {
+	scaledPositionalIndelScores := map[int]int{}
+	for key, score := range positionalIndelScores {
 		// create a tiny bloom filter to prune negatives
-		positionalIndelScoresBloomFilter |= key
+		positionalIndelScoresBloomFilter |= simpleFNV1a(key)
+		scaledPositionalIndelScores[key] = score * scoreScale
 	}
 	return &GeneralScoreHandler{
 		scoreScale:                       scoreScale,
@@ -150,7 +166,7 @@ func New(
 		gapExtensionPenalty:              gapExtensionPenalty * scoreScale,
 		indelCodonOpeningBonus:           indelCodonOpeningBonus * scoreScale,
 		indelCodonExtensionBonus:         indelCodonExtensionBonus * scoreScale,
-		positionalIndelScores:            positionalIndelScores,
+		positionalIndelScores:            scaledPositionalIndelScores,
 		positionalIndelScoresBloomFilter: positionalIndelScoresBloomFilter,
 		isPositionalIndelScoreSupported:  isPositionalIndelScoreSupported,
 		scoreMatrix:                      &scoreMatrix,
