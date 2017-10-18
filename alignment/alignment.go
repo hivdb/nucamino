@@ -45,7 +45,7 @@ type Alignment struct {
 	endPosA                       int
 	maxScore                      int
 	scoreHandler                  h.GeneralScoreHandler
-	scoreMatrix                   []int
+	nwMatrix                      []int
 	q                             int
 	r                             int
 	supportPositionalIndel        bool
@@ -89,7 +89,7 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler h.Gener
 		nSeqLen:                       nSeqLen,
 		aSeqLen:                       aSeqLen,
 		scoreHandler:                  scoreHandler,
-		scoreMatrix:                   make([]int, 0),
+		nwMatrix:                      make([]int, 0),
 		supportPositionalIndel:        supportPositionalIndel,
 		constIndelCodonOpeningScore:   constIndelCodonOpeningScore,
 		constIndelCodonExtensionScore: constIndelCodonExtensionScore,
@@ -101,20 +101,6 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler h.Gener
 	} else {
 		return nil, errors.New("sequence misaligned")
 	}
-}
-
-func (self *Alignment) GetCalcInfo() (int, int) {
-	counter := 0
-	for idx, mtIdx := range self.scoreMatrix {
-		if idx%2 == 0 {
-			// score
-			continue
-		}
-		if mtIdx != -1 {
-			counter++
-		}
-	}
-	return counter, len(self.scoreMatrix) / 2
 }
 
 func padRightSpace(str string, length int) string {
@@ -132,34 +118,12 @@ func (self *Alignment) GetReport() AlignmentReport {
 		LastPosA                         = -1
 		lastScoreType                    = GENERAL
 		hasUnprocessedNAs                = false
+		startMtIdx                       = self.getMatrixIndex(GENERAL, 0, 0)
 		endMtIdx                         = self.getMatrixIndex(GENERAL, self.endPosN, self.endPosA)
-		startMtIdx                       = 0
 		singleMtLen                      = (self.nSeqLen + 1) * (self.aSeqLen + 1) * 2
 	)
 
-	if self.isSimpleAlignment {
-		startMtIdx = self.getMatrixIndex(GENERAL, 0, 0)
-	} else {
-		var (
-			score     int
-			curMtIdx  = endMtIdx
-			prevMtIdx = -1
-			prevScore = self.maxScore
-		)
-		for curMtIdx >= 0 && curMtIdx != prevMtIdx {
-			score = self.scoreMatrix[curMtIdx]
-			if score <= prevScore {
-				prevScore = score
-				startMtIdx = curMtIdx
-			}
-			prevMtIdx = curMtIdx
-			curMtIdx = self.scoreMatrix[curMtIdx+1]
-		}
-	}
-	// fmt.Fprintf(os.Stderr, "1,1 - %d,%d (%d)\n", self.endPosA, self.endPosN, singleMtLen)
-
 	for endMtIdx%singleMtLen >= startMtIdx%singleMtLen {
-		// score := self.scoreMatrix[endMtIdx]
 		scoreType, posN, posA := self.getTypedPos(endMtIdx)
 		// fmt.Fprintf(os.Stderr, "%s (%d,%d,%d,%d)\n", lastScoreType, LastPosN, posN, LastPosA, posA)
 		if lastAA == 0 && lastNA == 0 {
@@ -245,7 +209,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 		if self.isSimpleAlignment {
 			endMtIdx = self.getMatrixIndex(GENERAL, posN-3, posA-1)
 		} else {
-			endMtIdx = self.scoreMatrix[endMtIdx+1]
+			endMtIdx = self.nwMatrix[endMtIdx]
 		}
 		if lastScoreType == INS {
 			hasUnprocessedNAs = true
@@ -293,11 +257,10 @@ func (self *Alignment) GetReport() AlignmentReport {
 }
 
 func (self *Alignment) getMatrixIndex(scoreType tScoreType, posN int, posA int) int {
-	return 2 * ((self.aSeqLen+1)*(posN+int(scoreType)*(self.nSeqLen+1)) + posA)
+	return ((self.aSeqLen+1)*(posN+int(scoreType)*(self.nSeqLen+1)) + posA)
 }
 
 func (self *Alignment) getTypedPos(matrixIndex int) (scoreType tScoreType, posN int, posA int) {
-	matrixIndex /= 2
 	posA = matrixIndex % (self.aSeqLen + 1)
 	nTotal := matrixIndex / (self.aSeqLen + 1)
 	posN = nTotal % (self.nSeqLen + 1)
@@ -305,10 +268,9 @@ func (self *Alignment) getTypedPos(matrixIndex int) (scoreType tScoreType, posN 
 	return
 }
 
-func (self *Alignment) setCachedScore(scoreType tScoreType, posN int, posA int, score int, prevMatrixIdx int) {
+func (self *Alignment) setPrevMatrixIndex(scoreType tScoreType, posN int, posA int, prevMatrixIdx int) {
 	mtIdx := self.getMatrixIndex(scoreType, posN, posA)
-	self.scoreMatrix[mtIdx] = score
-	self.scoreMatrix[mtIdx+1] = prevMatrixIdx
+	self.nwMatrix[mtIdx] = prevMatrixIdx
 }
 
 func (self *Alignment) getNA(nPos int) n.NucleicAcid {
@@ -345,8 +307,8 @@ func (self *Alignment) align() bool {
 		self.endPosA = endPosA - self.aSeqOffset
 		return true
 	}
-	typedPosLen := scoreTypeCount * (self.nSeqLen + 1) * (self.aSeqLen + 1) * 2
-	self.scoreMatrix = make([]int, typedPosLen)
+	typedPosLen := scoreTypeCount * (self.nSeqLen + 1) * (self.aSeqLen + 1)
+	self.nwMatrix = make([]int, typedPosLen)
 	self.endPosN, self.endPosA, self.maxScore, _ = self.calcScoreMainForward()
 	return true
 }

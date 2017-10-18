@@ -321,7 +321,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 				iScore30, gScore20, gScore10)
 
 			if !self.boundaryOnly {
-				self.setCachedScore(INS, i, j, iScore00, prevMtIdx)
+				self.setPrevMatrixIndex(INS, i, j, prevMtIdx)
 			}
 
 			dScore00, prevMtIdx = self.calcDelScoreForward(
@@ -332,7 +332,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 			dScoresCur[i] = dScore00
 
 			if !self.boundaryOnly {
-				self.setCachedScore(DEL, i, j, dScore00, prevMtIdx)
+				self.setPrevMatrixIndex(DEL, i, j, prevMtIdx)
 			}
 
 			gScore00, prevMtIdx, isSimple = self.calcScoreForward(
@@ -352,7 +352,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 			gScoresCur[i] = gScore00
 
 			if !self.boundaryOnly {
-				self.setCachedScore(GENERAL, i, j, gScore00, prevMtIdx)
+				self.setPrevMatrixIndex(GENERAL, i, j, prevMtIdx)
 			}
 
 			if gScore00 >= maxScore {
