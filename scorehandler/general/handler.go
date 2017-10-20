@@ -7,6 +7,7 @@ import (
 	n "github.com/hivdb/nucamino/types/nucleic"
 )
 
+const posInf = int((^uint(0)) >> 1)
 const negInf = -int((^uint(0))>>1) - 1
 
 // FNV algorithm was used to generated index number for the bloom filter
@@ -33,11 +34,14 @@ type GeneralScoreHandler struct {
 	positionalIndelScores            map[int]int
 	positionalIndelScoresBloomFilter int
 	isPositionalIndelScoreSupported  bool
+	maxScores                        *[a.NumAminoAcids]int
+	minScores                        *[a.NumAminoAcids]int
+	maxScore                         int
+	minScore                         int
 	scoreMatrix                      *[a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int
 }
 
 func (self *GeneralScoreHandler) GetCachedSubstitutionScore(
-	position int,
 	base1 n.NucleicAcid,
 	base2 n.NucleicAcid,
 	base3 n.NucleicAcid,
@@ -49,8 +53,17 @@ func (self *GeneralScoreHandler) GetCachedSubstitutionScore(
 	return score, present
 }
 
+func (self *GeneralScoreHandler) GetMaxSubstitutionScore(ref a.AminoAcid) int {
+	return self.maxScore
+	// return self.maxScores[ref]
+}
+
+func (self *GeneralScoreHandler) GetMinSubstitutionScore(ref a.AminoAcid) int {
+	return self.minScore
+	// return self.minScores[ref]
+}
+
 func (self *GeneralScoreHandler) GetSubstitutionScoreNoCache(
-	position int,
 	base1 n.NucleicAcid,
 	base2 n.NucleicAcid,
 	base3 n.NucleicAcid,
@@ -81,20 +94,6 @@ func (self *GeneralScoreHandler) GetSubstitutionScoreNoCache(
 	}
 	self.scoreMatrix[ref][base1][base2][base3] = score
 	return
-}
-
-func (self *GeneralScoreHandler) GetSubstitutionScore(
-	position int,
-	base1 n.NucleicAcid,
-	base2 n.NucleicAcid,
-	base3 n.NucleicAcid,
-	ref a.AminoAcid) int {
-	// We use GetCachedSubstitutionScore separately to trigger gc's function inlining
-	// which can improve the performance by about 1/6
-	if score, present := self.GetCachedSubstitutionScore(position, base1, base2, base3, ref); present {
-		return score
-	}
-	return self.GetSubstitutionScoreNoCache(position, base1, base2, base3, ref)
 }
 
 func (self *GeneralScoreHandler) GetGapOpeningScore() int {
@@ -133,6 +132,26 @@ func (self *GeneralScoreHandler) GetPositionalIndelCodonScore(position int, isIn
 	return score, self.indelCodonExtensionBonus
 }
 
+func (self *GeneralScoreHandler) GetIndelCodonOpeningScore(position int, indelSign int) int {
+	score := self.indelCodonOpeningBonus
+	if self.isPositionalIndelScoreSupported {
+		key := indelSign * position
+		hashed := simpleFNV1a(key)
+		if self.positionalIndelScoresBloomFilter&hashed == hashed {
+			// the bloom filter removed most negatives; now search the real map
+			_score, ok := self.positionalIndelScores[key]
+			if ok {
+				score = _score
+			}
+		}
+	}
+	return score
+}
+
+func (self *GeneralScoreHandler) GetIndelCodonExtensionScore() int {
+	return self.indelCodonExtensionBonus
+}
+
 func New(
 	stopCodonPenalty int,
 	gapOpenPenalty int,
@@ -141,8 +160,36 @@ func New(
 	indelCodonExtensionBonus int,
 	positionalIndelScores map[int]int,
 	isPositionalIndelScoreSupported bool) *GeneralScoreHandler {
-	scoreScale := 100
-	scoreMatrix := [a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int{}
+	var (
+		scoreScale         = 100
+		maxScore, minScore = posInf, negInf
+		maxScores          = [a.NumAminoAcids]int{}
+		minScores          = [a.NumAminoAcids]int{}
+		scoreMatrix        = [a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int{}
+	)
+
+	for _, aa1 := range a.AminoAcids {
+		var score int
+		max, min := negInf, posInf
+		for _, aa2 := range a.AminoAcids {
+			score = int(d.LookupBlosum62(aa1, aa2)) * scoreScale
+			if score > max {
+				max = score
+			}
+			if score < min {
+				min = score
+			}
+			maxScores[aa1] = max
+			minScores[aa1] = min
+		}
+		if maxScore > max {
+			maxScore = max
+		}
+		if minScore < min {
+			minScore = min
+		}
+	}
+
 	for i, matrix3d := range scoreMatrix {
 		for x, matrix2d := range matrix3d {
 			for y, matrix1d := range matrix2d {
@@ -169,6 +216,10 @@ func New(
 		positionalIndelScores:            scaledPositionalIndelScores,
 		positionalIndelScoresBloomFilter: positionalIndelScoresBloomFilter,
 		isPositionalIndelScoreSupported:  isPositionalIndelScoreSupported,
+		maxScore:                         maxScore,
+		minScore:                         minScore,
+		maxScores:                        &maxScores,
+		minScores:                        &minScores,
 		scoreMatrix:                      &scoreMatrix,
 	}
 }
