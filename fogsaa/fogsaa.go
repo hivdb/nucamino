@@ -32,6 +32,10 @@ const (
 	NA1MASK = 0x4
 	NA2MASK = 0x2
 	NA3MASK = 0x1
+
+	GAP_CLOSED     = 0
+	INS_GAP_OPENED = 1
+	DEL_GAP_OPENED = 2
 )
 
 const nodeTypesLen = 11
@@ -105,39 +109,41 @@ func init() {
 }
 
 type Node struct {
-	posA            int
-	posN            int
-	nodeType        int
-	minFitnessScore int
-	maxFitnessScore int
-	minSubScore     int
-	maxSubScore     int
-	minGapScore     int
-	maxGapScore     int
-	presentScore    int
-	isLeaf          bool
-	parent          *Node
+	posA             int
+	posN             int
+	gapOpeningStatus int
+	nodeType         int
+	minFitnessScore  int
+	maxFitnessScore  int
+	minSubScore      int
+	maxSubScore      int
+	minGapScore      int
+	maxGapScore      int
+	presentScore     int
+	isLeaf           bool
+	parent           *Node
 }
 
-// type sortableNodes [nodeTypesLen]*Node
-//
-// func (self sortableNodes) Len() int      { return nodeTypesLen }
-// func (self sortableNodes) Swap(i, j int) { *self[i], *self[j] = *self[j], *self[i] }
-// func (self sortableNodes) Less(i, j int) bool {
-// 	if self[i].isExceeded {
-// 		return false
-// 	} else if self[j].isExceeded {
-// 		return true
-// 	}
-// 	if self[i].maxFitnessScore > self[j].maxFitnessScore {
-// 		return true
-// 	}
-// 	if self[i].maxFitnessScore == self[j].maxFitnessScore &&
-// 		self[i].minFitnessScore >= self[j].minFitnessScore {
-// 		return true
-// 	}
-// 	return false
-// }
+func getGapOpeningStatus(nodeType int) int {
+	// There are 3 gap opening statuses for partial alignment (posA, posN):
+	// 1. no gap was opened at the last base; therefore the child must receive gap
+	//    opening penalty when starts with "+" (additional NAs) or "-" (missing NAs).
+	// 2. a NA insertion gap was opened at the last base; therefore the child must
+	//    NOT receive any gap opening penalty when starts with "+".
+	// 3. a NA deletion gap was opened at the last base; therefore the child must
+	//    NOT receive any gap opening penalty when starts with "-".
+	status := GAP_CLOSED
+	if nodeType == ROOT {
+		return status
+	} else if nodeType>>3 == 0 {
+		// "insertion"
+		status = INS_GAP_OPENED
+	} else if nodeType%2 == 0 {
+		// "deletion" and end with "-"
+		status = DEL_GAP_OPENED
+	}
+	return status
+}
 
 func nodeComparator(a, b interface{}) int {
 	n1 := a.(*Node)
@@ -358,11 +364,12 @@ func (self *Node) expand(alignment *Alignment) [nodeTypesLen]*Node {
 			isLeaf = true
 		}
 		children[i] = &Node{
-			posA:     posA,
-			posN:     posN,
-			nodeType: nodeType,
-			parent:   self,
-			isLeaf:   isLeaf,
+			posA:             posA,
+			posN:             posN,
+			gapOpeningStatus: getGapOpeningStatus(nodeType),
+			nodeType:         nodeType,
+			parent:           self,
+			isLeaf:           isLeaf,
 		}
 		node = children[i]
 		node.calcPresentScore(alignment)
@@ -396,10 +403,11 @@ func New(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler *h.GeneralScoreH
 		maxSubstitutionScoreSum = 0
 		minSubstitutionScoreSum = 0
 		rootNode                = Node{
-			posA:         0,
-			posN:         0,
-			nodeType:     ROOT,
-			presentScore: 0,
+			posA:             0,
+			posN:             0,
+			gapOpeningStatus: getGapOpeningStatus(ROOT),
+			nodeType:         ROOT,
+			presentScore:     0,
 		}
 	)
 	for i, aa := range aSeq {
@@ -522,25 +530,11 @@ func (self *Alignment) getAA(posA int) a.AminoAcid {
 	return self.aSeq[posA-1]
 }
 
-func (self *Alignment) getNodeIndex(posA, posN, nodeType int) int {
-	// There are 3 gap opening statuses for partial alignment (posA, posN):
-	// 1. no gap was opened at the last base; therefore the child must receive gap
-	//    opening penalty when starts with "+" (additional NAs) or "-" (missing NAs).
-	// 2. a NA insertion gap was opened at the last base; therefore the child must
-	//    NOT receive any gap opening penalty when starts with "+".
-	// 3. a NA deletion gap was opened at the last base; therefore the child must
-	//    NOT receive any gap opening penalty when starts with "-".
-	status := 0
-	if nodeType == ROOT {
+func (self *Alignment) getNodeIndex(node *Node) int {
+	if node.nodeType == ROOT {
 		return 0
-	} else if nodeType>>3 == 0 {
-		// "insertion"
-		status++
-	} else if nodeType%2 == 0 {
-		// "deletion" and end with "-"
-		status = 2
 	}
-	return 3*(self.aSeqLen*posN+posA) + status
+	return 3*(self.aSeqLen*node.posN+node.posA) + node.gapOpeningStatus
 }
 
 func (self *Alignment) align() {
@@ -560,7 +554,7 @@ func (self *Alignment) align() {
 			break
 		}
 		curNode = curNodeIf.(*Node)
-		nodeIdx := self.getNodeIndex(curNode.posA, curNode.posN, curNode.nodeType)
+		nodeIdx := self.getNodeIndex(curNode)
 		bestNode := bestSoFarNodes[nodeIdx]
 		if bestNode == nil || curNode.presentScore > bestNode.presentScore {
 			// curNode is the better path from ROOT to current position & status
@@ -581,7 +575,7 @@ func (self *Alignment) align() {
 			if child == nil {
 				continue
 			}
-			nodeIdx := self.getNodeIndex(child.posA, child.posN, child.nodeType)
+			nodeIdx := self.getNodeIndex(child)
 			bestNode := bestSoFarNodes[nodeIdx]
 			// Both present scores are compared to find the better path from ROOT to the
 			// child position.
