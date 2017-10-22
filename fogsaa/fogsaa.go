@@ -522,69 +522,35 @@ func (self *Alignment) getAA(posA int) a.AminoAcid {
 	return self.aSeq[posA-1]
 }
 
-var count = 0
-
-/*func (self *Alignment) alignFrom(curNode *Node, depth int) {
-	var (
-		topChild, nextChild *Node
-	)
-	// if count > 55 {
-	// if curNode.posN != 300 {
-	//fmt.Printf("AA%d,NA%d,Type%04b,score%d\n", curNode.posA, curNode.posN, curNode.nodeType, curNode.presentScore)
-	// }
-	// }
-	count++
-	if count == 240 {
-		panic(0)
+func (self *Alignment) getNodeIndex(posA, posN, nodeType int) int {
+	// There are 3 gap opening statuses for partial alignment (posA, posN):
+	// 1. no gap was opened at the last base; therefore the child must receive gap
+	//    opening penalty when starts with "+" (additional NAs) or "-" (missing NAs).
+	// 2. a NA insertion gap was opened at the last base; therefore the child must
+	//    NOT receive any gap opening penalty when starts with "+".
+	// 3. a NA deletion gap was opened at the last base; therefore the child must
+	//    NOT receive any gap opening penalty when starts with "-".
+	status := 0
+	if nodeType == ROOT {
+		return 0
+	} else if nodeType>>3 == 0 {
+		// "insertion"
+		status++
+	} else if nodeType%2 == 0 {
+		// "deletion" and end with "-"
+		status = 2
 	}
-	if curNode.isLeaf {
-		curNode.optimalScore = curNode.presentScore
-		return
-	}
-	curNode.expand(self)
-
-	// if count > 55 {
-	// for i := 0; i < nodeTypesLen; i++ {
-	// 	nextChild = curNode.children[i]
-	// 	fmt.Printf("- AA%d,NA%d,Type%04b,%d,%d-%d\n", nextChild.posA, nextChild.posN, nextChild.nodeType, nextChild.presentScore, nextChild.maxFitnessScore, nextChild.minFitnessScore)
-	// }
-	// }
-
-	for i := 0; i < nodeTypesLen; i++ {
-		nextChild = curNode.children[i]
-		if nextChild.isExceeded {
-			continue
-		}
-		if topChild != nil && topChild.optimalScore > nextChild.maxFitnessScore {
-			// prune remaining branches
-			fmt.Printf("pruned at %d (%04b), depth %d, %d > %d\n", i, topChild.nodeType, depth, topChild.optimalScore, nextChild.maxFitnessScore)
-			break
-		}
-		self.alignFrom(nextChild, depth+1)
-		if topChild == nil || nextChild.optimalScore > topChild.optimalScore {
-			topChild = nextChild
-		}
-	}
-	// if depth == 99 {
-	// 	fmt.Printf("AA%d,NA%d,Type%04b,score%d\n", topChild.posA, topChild.posN, topChild.nodeType, topChild.optimalScore)
-	// }
-	curNode.optimalChild = topChild
-	curNode.optimalScore = topChild.optimalScore
-	fmt.Printf("AA%d,NA%d,Type%04b,score%d\n", curNode.posA, curNode.posN, curNode.nodeType, curNode.presentScore)
-}*/
-
-func (self *Alignment) getMatrixIndex(posA int, posN int) int {
-	return 2 * (self.aSeqLen*posN + posA)
+	return 3*(self.aSeqLen*posN+posA) + status
 }
 
 func (self *Alignment) align() {
 	var (
-		present      = true
-		curNode      *Node
-		curNodeIf    interface{}
-		optimalLeaf  *Node
-		queue        = binaryheap.NewWith(nodeComparator)
-		bestNodesMap = map[int]*Node{}
+		present        = true
+		curNode        *Node
+		curNodeIf      interface{}
+		optimalLeaf    *Node
+		queue          = binaryheap.NewWith(nodeComparator)
+		bestSoFarNodes = map[int]*Node{} // stores expanded best-so-far nodes
 	)
 	queue.Push(self.rootNode)
 	times := 0
@@ -594,11 +560,14 @@ func (self *Alignment) align() {
 			break
 		}
 		curNode = curNodeIf.(*Node)
-		mtIdx := self.getMatrixIndex(curNode.posA, curNode.posN)
-		bestNode := bestNodesMap[mtIdx]
-		if bestNode == nil || nodeComparator(bestNode, curNode) > 0 { // curNode > bestNode
-			bestNodesMap[mtIdx] = curNode
+		nodeIdx := self.getNodeIndex(curNode.posA, curNode.posN, curNode.nodeType)
+		bestNode := bestSoFarNodes[nodeIdx]
+		if bestNode == nil || curNode.presentScore > bestNode.presentScore {
+			// curNode is the better path from ROOT to current position & status
+			bestSoFarNodes[nodeIdx] = curNode
 		} else {
+			// PRUNE #1
+			// pruned since curNode is no longer promised
 			continue
 		}
 		times++
@@ -612,19 +581,26 @@ func (self *Alignment) align() {
 			if child == nil {
 				continue
 			}
-			mtIdx := self.getMatrixIndex(child.posA, child.posN)
-			bestNode := bestNodesMap[mtIdx]
-			if bestNode == nil || nodeComparator(bestNode, child) > 0 { // child > bestNode
+			nodeIdx := self.getNodeIndex(child.posA, child.posN, child.nodeType)
+			bestNode := bestSoFarNodes[nodeIdx]
+			// Both present scores are compared to find the better path from ROOT to the
+			// child position.
+			// The bestNode has same position and gap opening status (see above) as child
+			// which indicates their future scores should and will be identical.
+			if bestNode == nil || child.presentScore > bestNode.presentScore {
 				// do not replace the original bestNode since the child node hasn't been expanded
 				queue.Push(child)
-			}
+			} /* else prune the child since it is worse than expanded node */
+			// PRUNE #2
 		}
 		if optimalLeaf != nil && optimalLeaf.presentScore > curNode.maxFitnessScore {
+			// PRUNE #3
+			// TODO: the maxFitnessScore is not the "maxPossibleScore" which should be compared with presentScore.
+			// the "maxPossibleScore" should take the maximum substitution scores or a better alignment may be pruned
 			break
 		}
 		// fmt.Printf("AA%d,NA%d,Type%04b,score%d, [%d,%d], [%d,%d], [%d,%d]\n", curNode.posA, curNode.posN, curNode.nodeType, curNode.presentScore, curNode.minFitnessScore, curNode.maxFitnessScore, curNode.minSubScore, curNode.maxSubScore, curNode.minGapScore, curNode.maxGapScore)
 	}
-	// self.alignFrom(self.rootNode, 0)
 	// fmt.Printf("AA%d,NA%d,Type%04b,score%d, [%d,%d], [%d,%d], [%d,%d]\n", optimalLeaf.posA, optimalLeaf.posN, optimalLeaf.nodeType, optimalLeaf.presentScore, optimalLeaf.minFitnessScore, optimalLeaf.maxFitnessScore, optimalLeaf.minSubScore, optimalLeaf.maxSubScore, optimalLeaf.minGapScore, optimalLeaf.maxGapScore)
 	print(times, "\n")
 	self.optimalLeaf = optimalLeaf
@@ -636,11 +612,6 @@ func (self *Alignment) GetReport() {
 		fmt.Printf("AA%d,NA%d,Type%04b,Score%d\n", node.posA, node.posN, node.nodeType, node.presentScore)
 		node = node.parent
 	}
-
-	// var node = self.rootNode
-	// for node != nil {
-	// 	fmt.Printf("AA%d,NA%d,Type%04b\n", node.posA, node.posN, node.nodeType)
-	// }
 }
 
 func main() {
