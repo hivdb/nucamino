@@ -109,19 +109,19 @@ func init() {
 }
 
 type Node struct {
-	posA             int
-	posN             int
-	gapOpeningStatus int
-	nodeType         int
-	minFitnessScore  int
-	maxFitnessScore  int
-	minSubScore      int
-	maxSubScore      int
-	minGapScore      int
-	maxGapScore      int
-	presentScore     int
-	isLeaf           bool
-	parent           *Node
+	// The two fitness scores are only used for ranking nodes
+	// but not for pruning any nodes. Instead, the presentScore
+	// and the maxPossibleScore are used for pruning.
+	posA              int
+	posN              int
+	gapOpeningStatus  int
+	nodeType          int
+	lowerFitnessScore int
+	upperFitnessScore int
+	maxPossibleScore  int
+	presentScore      int
+	isLeaf            bool
+	parent            *Node
 }
 
 func getGapOpeningStatus(nodeType int) int {
@@ -148,9 +148,9 @@ func getGapOpeningStatus(nodeType int) int {
 func nodeComparator(a, b interface{}) int {
 	n1 := a.(*Node)
 	n2 := b.(*Node)
-	cmp := n2.maxFitnessScore - n1.maxFitnessScore
+	cmp := n2.upperFitnessScore - n1.upperFitnessScore
 	if cmp == 0 {
-		cmp = n2.minFitnessScore - n1.minFitnessScore
+		cmp = n2.lowerFitnessScore - n1.lowerFitnessScore
 	}
 	return cmp
 }
@@ -231,8 +231,9 @@ func (self *Node) calcPresentScore(alignment *Alignment) {
 // This function assumes that calcPresentScore() has been called
 func (self *Node) calcFitnessScore(alignment *Alignment) {
 	if self.isLeaf {
-		self.maxFitnessScore = self.presentScore
-		self.minFitnessScore = self.presentScore
+		self.upperFitnessScore = self.presentScore
+		self.lowerFitnessScore = self.presentScore
+		self.maxPossibleScore = self.presentScore
 		return
 	}
 	var (
@@ -240,8 +241,9 @@ func (self *Node) calcFitnessScore(alignment *Alignment) {
 		indelSign           int
 		gapOpened           = false
 		sh                  = alignment.scoreHandler
-		fitnessMin          = 0
-		fitnessMax          = 0
+		lowerFutureScore    = 0
+		upperFutureScore    = 0
+		maxFutureScore      = 0
 		posAStart           = self.posA + 1
 		posNStart           = self.posN + 1
 		aRemainNumNAs       = (alignment.aSeqLen + 1 - posAStart) * 3
@@ -276,10 +278,9 @@ func (self *Node) calcFitnessScore(alignment *Alignment) {
 	// if self.nodeType == A1N000 {
 	// 	fmt.Printf("%d-%d, %d, %d\n", posAStart, posAEnd, nRemainNumNAs, aRemainNumNAs)
 	// }
-	self.minSubScore = alignment.getMinSubstitutionScore(posAStart, windowSize, numGaps)
-	self.maxSubScore = alignment.getMaxSubstitutionScore(posAStart, windowSize)
-	fitnessMin += self.minSubScore
-	fitnessMax += self.maxSubScore
+	lowerFutureScore += alignment.getMaxNegativeScore(posAStart, windowSize, numGaps)
+	upperFutureScore += alignment.getMinPositiveScore(posAStart, windowSize)
+	maxFutureScore += alignment.getMaxPositiveScore(posAStart, windowSize)
 	/*for posA := posAStart; posA < posAEnd; posA++ {
 		iO = sh.GetIndelCodonOpeningScore(posA, indelSign)
 		if iO > iOMax {
@@ -300,10 +301,10 @@ func (self *Node) calcFitnessScore(alignment *Alignment) {
 	if numGaps < maxGapsInWindow {
 		maxGapsInWindow = numGaps
 	}
-	// fitnessMin += maxGapsInWindow*gO + numGaps*gE
-	fitnessMin += maxGapsInWindow * (gO + gE)
+	// lowerFutureScore += maxGapsInWindow*gO + numGaps*gE
+	lowerFutureScore += maxGapsInWindow * (gO + gE)
 	if numGaps > 0 && gapOpened {
-		fitnessMin -= gO
+		lowerFutureScore -= gO
 	}
 
 	// gap penalties & indel codon bonus for Tmax
@@ -313,26 +314,25 @@ func (self *Node) calcFitnessScore(alignment *Alignment) {
 	// 3. iE >= 0
 	// 4. iOMax <= |gO|
 	// TODO: check if these conditions were satisfied
-	//fmt.Printf("-1 %d,%d,%d,%d,%d, %04b\n", self.presentScore, fitnessMax, fitnessMin, aRemainNumNAs, nRemainNumNAs, self.nodeType)
+	//fmt.Printf("-1 %d,%d,%d,%d,%d, %04b\n", self.presentScore, upperFutureScore, lowerFutureScore, aRemainNumNAs, nRemainNumNAs, self.nodeType)
 
 	// no score/penalty for trailing gaps
-	// fitnessMax += numGaps*gE + numGaps/3*iE
-	fitnessMax += 0*iE + 0*iOMax
+	// upperFutureScore += numGaps*gE + numGaps/3*iE
+	upperFutureScore += 0*iE + 0*iOMax
 	// fmt.Printf("== |(%d)-(%d)|=%d\n", nRemainNumNAs, aRemainNumNAs, numGaps)
 	// if !gapOpened {
 	// 	if numGaps > 0 {
-	// 		fitnessMax += gO
+	// 		upperFutureScore += gO
 	// 	}
 	// 	if numGaps > 2 && iOMax > 0 {
-	// 		fitnessMax += iOMax
+	// 		upperFutureScore += iOMax
 	// 	}
 	// }
-	// fmt.Printf("%d,%d,%d,%d,%d,%t,%04b\n", self.presentScore, fitnessMax, fitnessMin, aRemainNumNAs, nRemainNumNAs, gapOpened, self.nodeType)
-	self.minGapScore = fitnessMin - self.minSubScore
-	self.maxGapScore = fitnessMax - self.maxSubScore
+	// fmt.Printf("%d,%d,%d,%d,%d,%t,%04b\n", self.presentScore, upperFutureScore, lowerFutureScore, aRemainNumNAs, nRemainNumNAs, gapOpened, self.nodeType)
 
-	self.maxFitnessScore = self.presentScore + fitnessMax
-	self.minFitnessScore = self.presentScore + fitnessMin
+	self.maxPossibleScore = self.presentScore + maxFutureScore
+	self.upperFitnessScore = self.presentScore + upperFutureScore
+	self.lowerFitnessScore = self.presentScore + lowerFutureScore
 }
 
 func (self *Node) expand(alignment *Alignment) [nodeTypesLen]*Node {
@@ -347,6 +347,9 @@ func (self *Node) expand(alignment *Alignment) [nodeTypesLen]*Node {
 	for i, nodeType := range nodeTypes {
 		if self.nodeType != ROOT && self.nodeType>>3 == 0 && nodeType>>2 == 0x2 {
 			// **+-** is not allowed
+			continue
+		} else if (self.nodeType == A0N001 || self.nodeType == A0N011) && nodeType>>3 == 0 {
+			// non-triplet insertion (frameshift) must appear at the end of a gap
 			continue
 		} else if self.nodeType>>3 == 0x1 && self.nodeType%2 == 0 && nodeType>>3 == 0 {
 			// **-+** is alow not allowed
@@ -374,35 +377,27 @@ func (self *Node) expand(alignment *Alignment) [nodeTypesLen]*Node {
 		node = children[i]
 		node.calcPresentScore(alignment)
 		node.calcFitnessScore(alignment)
-		// fmt.Printf("- AA%d,NA%d,Type%04b,score%d, [%d,%d], [%d,%d], [%d,%d]\n", node.posA, node.posN, node.nodeType, node.presentScore, node.minFitnessScore, node.maxFitnessScore, node.minSubScore, node.maxSubScore, node.minGapScore, node.maxGapScore)
+		// fmt.Printf("- AA%d,NA%d,Type%04b,score%d, [%d,%d], [%d,%d], [%d,%d]\n", node.posA, node.posN, node.nodeType, node.presentScore, node.lowerFitnessScore, node.upperFitnessScore, node.minSubScore, node.maxSubScore, node.minGapScore, node.maxGapScore)
 	}
 	// sort.Sort(sortableNodes(children))
 	return children
 }
 
 type Alignment struct {
-	nSeq                    []n.NucleicAcid
-	aSeq                    []a.AminoAcid
-	nSeqLen                 int
-	aSeqLen                 int
-	maxSubstitutionScore    []int
-	minSubstitutionScore    []int
-	maxSubstitutionScoreSum int
-	minSubstitutionScoreSum int
-	scoreHandler            *h.GeneralScoreHandler
-	rootNode                *Node
-	optimalLeaf             *Node
+	nSeq         []n.NucleicAcid
+	aSeq         []a.AminoAcid
+	nSeqLen      int
+	aSeqLen      int
+	scoreHandler *h.GeneralScoreHandler
+	rootNode     *Node
+	optimalLeaf  *Node
 }
 
 func New(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler *h.GeneralScoreHandler) *Alignment {
 	var (
-		nSeqLen                 = len(nSeq)
-		aSeqLen                 = len(aSeq)
-		maxSubstitutionScore    = make([]int, aSeqLen)
-		minSubstitutionScore    = make([]int, aSeqLen)
-		maxSubstitutionScoreSum = 0
-		minSubstitutionScoreSum = 0
-		rootNode                = Node{
+		nSeqLen  = len(nSeq)
+		aSeqLen  = len(aSeq)
+		rootNode = Node{
 			posA:             0,
 			posN:             0,
 			gapOpeningStatus: getGapOpeningStatus(ROOT),
@@ -410,116 +405,40 @@ func New(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler *h.GeneralScoreH
 			presentScore:     0,
 		}
 	)
-	for i, aa := range aSeq {
-		score := scoreHandler.GetMaxSubstitutionScore(aa)
-		maxSubstitutionScore[i] = score
-		maxSubstitutionScoreSum += score
-		score = scoreHandler.GetMinSubstitutionScore(aa)
-		minSubstitutionScore[i] = score
-		minSubstitutionScoreSum += score
-	}
 
 	return &Alignment{
-		nSeq:                    nSeq,
-		aSeq:                    aSeq,
-		nSeqLen:                 nSeqLen,
-		aSeqLen:                 aSeqLen,
-		maxSubstitutionScore:    maxSubstitutionScore,
-		minSubstitutionScore:    minSubstitutionScore,
-		maxSubstitutionScoreSum: maxSubstitutionScoreSum,
-		minSubstitutionScoreSum: minSubstitutionScoreSum,
-		scoreHandler:            scoreHandler,
-		rootNode:                &rootNode,
+		nSeq:         nSeq,
+		aSeq:         aSeq,
+		nSeqLen:      nSeqLen,
+		aSeqLen:      aSeqLen,
+		scoreHandler: scoreHandler,
+		rootNode:     &rootNode,
 	}
 }
 
-func (self *Alignment) getMaxSubstitutionScore(startPosA, windowSize int) int {
-	var (
-		// maxScoreSum int
-		leftPtr = startPosA - 1
-		// rightPtr    = leftPtr + windowSize
-		// scoreSum    = self.maxSubstitutionScoreSum
-		// gO          = self.scoreHandler.GetGapOpeningScore()
-	)
-	// scoreSum += gO
-	// for i := 0; i < leftPtr; i++ {
-	// 	scoreSum -= self.maxSubstitutionScore[i]
-	// }
-
-	if windowSize >= self.aSeqLen-leftPtr {
-		windowSize = self.aSeqLen - leftPtr
-		// if rightPtr == self.aSeqLen {
-		// 	scoreSum -= gO
-		// }
-		// return scoreSum
+func (self *Alignment) getMinPositiveScore(startPosA, windowSize int) int {
+	if windowSize >= self.aSeqLen-startPosA+1 {
+		windowSize = self.aSeqLen - startPosA + 1
 	}
-	return windowSize * self.scoreHandler.GetMaxSubstitutionScore(a.W)
-
-	/*for i := self.aSeqLen - 1; i >= leftPtr+windowSize; i-- {
-		scoreSum -= self.maxSubstitutionScore[i]
-	}
-	maxScoreSum = scoreSum
-	// var l, r int
-	for rightPtr < self.aSeqLen {
-		scoreSum += self.maxSubstitutionScore[rightPtr] - self.maxSubstitutionScore[leftPtr]
-		leftPtr++
-		rightPtr++
-		if rightPtr == self.aSeqLen {
-			scoreSum -= gO
-		}
-		if scoreSum > maxScoreSum {
-			// l = leftPtr
-			// r = rightPtr
-			maxScoreSum = scoreSum
-		}
-	}
-	// fmt.Printf("= %d %d %d %d %d\n", startPosA, windowSize, maxScoreSum, l, r)
-	return maxScoreSum*/
-
+	return windowSize * self.scoreHandler.GetMinPositiveScore()
 }
 
-func (self *Alignment) getMinSubstitutionScore(startPosA, windowSize, numGaps int) int {
+func (self *Alignment) getMaxPositiveScore(startPosA, windowSize int) int {
+	if windowSize >= self.aSeqLen-startPosA+1 {
+		windowSize = self.aSeqLen - startPosA + 1
+	}
+	return windowSize * self.scoreHandler.GetMaxPositiveScore()
+}
+
+func (self *Alignment) getMaxNegativeScore(startPosA, windowSize, numGaps int) int {
 	windowSize -= numGaps
 	if windowSize < 0 {
 		return 0
 	}
-	var (
-		// minScoreSum int
-		leftPtr = startPosA - 1
-		// rightPtr    = leftPtr + windowSize
-		// scoreSum    = self.minSubstitutionScoreSum
-		// gO          = self.scoreHandler.GetGapOpeningScore()
-	)
-	// scoreSum += gO
-	// for i := 0; i < leftPtr; i++ {
-	// 	scoreSum -= self.minSubstitutionScore[i]
-	// }
-
-	if windowSize >= self.aSeqLen-leftPtr {
-		windowSize = self.aSeqLen - leftPtr
-		// if rightPtr == self.aSeqLen {
-		// 	scoreSum -= gO
-		// }
-		// return scoreSum
+	if windowSize >= self.aSeqLen-startPosA+1 {
+		windowSize = self.aSeqLen - startPosA + 1
 	}
-	return windowSize * self.scoreHandler.GetMinSubstitutionScore(a.W)
-
-	/*for i := self.aSeqLen - 1; i >= leftPtr+windowSize; i-- {
-		scoreSum -= self.minSubstitutionScore[i]
-	}
-	minScoreSum = scoreSum
-	for rightPtr < self.aSeqLen {
-		scoreSum += self.minSubstitutionScore[rightPtr] - self.minSubstitutionScore[leftPtr]
-		leftPtr++
-		rightPtr++
-		// if rightPtr == self.aSeqLen {
-		// 	scoreSum -= gO
-		// }
-		if scoreSum < minScoreSum {
-			minScoreSum = scoreSum
-		}
-	}
-	return minScoreSum*/
+	return windowSize * self.scoreHandler.GetMaxNegativeScore()
 }
 
 func (self *Alignment) getNA(posN int) n.NucleicAcid {
@@ -555,6 +474,7 @@ func (self *Alignment) align() {
 		}
 		curNode = curNodeIf.(*Node)
 		nodeIdx := self.getNodeIndex(curNode)
+
 		bestNode := bestSoFarNodes[nodeIdx]
 		if bestNode == nil || curNode.presentScore > bestNode.presentScore {
 			// curNode is the better path from ROOT to current position & status
@@ -576,6 +496,7 @@ func (self *Alignment) align() {
 				continue
 			}
 			nodeIdx := self.getNodeIndex(child)
+
 			bestNode := bestSoFarNodes[nodeIdx]
 			// Both present scores are compared to find the better path from ROOT to the
 			// child position.
@@ -587,15 +508,15 @@ func (self *Alignment) align() {
 			} /* else prune the child since it is worse than expanded node */
 			// PRUNE #2
 		}
-		if optimalLeaf != nil && optimalLeaf.presentScore > curNode.maxFitnessScore {
+		if optimalLeaf != nil && optimalLeaf.presentScore > curNode.maxPossibleScore {
 			// PRUNE #3
-			// TODO: the maxFitnessScore is not the "maxPossibleScore" which should be compared with presentScore.
-			// the "maxPossibleScore" should take the maximum substitution scores or a better alignment may be pruned
+			// Unlike "upperFitnessScore", the "maxPossibleScore" takes the "real"
+			// maximum positive scores to ensure that no better alignment will be pruned
+			// fmt.Printf("AA%d,NA%d,Type%04b,score%d, [%d,%d,%d]\n", curNode.posA, curNode.posN, curNode.nodeType, curNode.presentScore, curNode.lowerFitnessScore, curNode.upperFitnessScore, curNode.maxPossibleScore)
 			break
 		}
-		// fmt.Printf("AA%d,NA%d,Type%04b,score%d, [%d,%d], [%d,%d], [%d,%d]\n", curNode.posA, curNode.posN, curNode.nodeType, curNode.presentScore, curNode.minFitnessScore, curNode.maxFitnessScore, curNode.minSubScore, curNode.maxSubScore, curNode.minGapScore, curNode.maxGapScore)
 	}
-	// fmt.Printf("AA%d,NA%d,Type%04b,score%d, [%d,%d], [%d,%d], [%d,%d]\n", optimalLeaf.posA, optimalLeaf.posN, optimalLeaf.nodeType, optimalLeaf.presentScore, optimalLeaf.minFitnessScore, optimalLeaf.maxFitnessScore, optimalLeaf.minSubScore, optimalLeaf.maxSubScore, optimalLeaf.minGapScore, optimalLeaf.maxGapScore)
+	// fmt.Printf("AA%d,NA%d,Type%04b,score%d, [%d,%d], [%d,%d], [%d,%d]\n", optimalLeaf.posA, optimalLeaf.posN, optimalLeaf.nodeType, optimalLeaf.presentScore, optimalLeaf.lowerFitnessScore, optimalLeaf.upperFitnessScore, optimalLeaf.minSubScore, optimalLeaf.maxSubScore, optimalLeaf.minGapScore, optimalLeaf.maxGapScore)
 	print(times, "\n")
 	self.optimalLeaf = optimalLeaf
 }

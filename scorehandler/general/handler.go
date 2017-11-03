@@ -5,24 +5,11 @@ import (
 	a "github.com/hivdb/nucamino/types/amino"
 	c "github.com/hivdb/nucamino/types/codon"
 	n "github.com/hivdb/nucamino/types/nucleic"
+	u "github.com/hivdb/nucamino/utils"
 )
 
 const posInf = int((^uint(0)) >> 1)
 const negInf = -int((^uint(0))>>1) - 1
-
-// FNV algorithm was used to generated index number for the bloom filter
-const FNVPrime = 16777619
-const FNVOffsetBasis = 2166136261
-
-func simpleFNV1a(key int) int {
-	// http://www.isthe.com/chongo/tech/comp/fnv/index.html
-	// The possible values of "key" are between -50000 and 50000
-	// and there's no collision in this region
-
-	// This is not a strict implementation of FNV (the key is not an octet),
-	// however it reduced the collisions of bloom filter in HIV-1 POL case
-	return (FNVOffsetBasis ^ key) * FNVPrime
-}
 
 type GeneralScoreHandler struct {
 	scoreScale                       int
@@ -34,10 +21,9 @@ type GeneralScoreHandler struct {
 	positionalIndelScores            map[int]int
 	positionalIndelScoresBloomFilter int
 	isPositionalIndelScoreSupported  bool
-	maxScores                        *[a.NumAminoAcids]int
-	minScores                        *[a.NumAminoAcids]int
-	maxScore                         int
-	minScore                         int
+	maxPositiveScore                 int
+	minPositiveScore                 int
+	maxNegativeScore                 int
 	scoreMatrix                      *[a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int
 }
 
@@ -53,14 +39,16 @@ func (self *GeneralScoreHandler) GetCachedSubstitutionScore(
 	return score, present
 }
 
-func (self *GeneralScoreHandler) GetMaxSubstitutionScore(ref a.AminoAcid) int {
-	return self.maxScore
-	// return self.maxScores[ref]
+func (self *GeneralScoreHandler) GetMaxPositiveScore() int {
+	return self.maxPositiveScore
 }
 
-func (self *GeneralScoreHandler) GetMinSubstitutionScore(ref a.AminoAcid) int {
-	return self.minScore
-	// return self.minScores[ref]
+func (self *GeneralScoreHandler) GetMinPositiveScore() int {
+	return self.minPositiveScore
+}
+
+func (self *GeneralScoreHandler) GetMaxNegativeScore() int {
+	return self.maxNegativeScore
 }
 
 func (self *GeneralScoreHandler) GetSubstitutionScoreNoCache(
@@ -120,7 +108,7 @@ func (self *GeneralScoreHandler) GetPositionalIndelCodonScore(position int, isIn
 			sign = 1
 		}
 		key := sign * position
-		hashed := simpleFNV1a(key)
+		hashed := u.SimpleFNV1a(key)
 		if self.positionalIndelScoresBloomFilter&hashed == hashed {
 			// the bloom filter removed most negatives; now search the real map
 			_score, ok := self.positionalIndelScores[key]
@@ -136,7 +124,7 @@ func (self *GeneralScoreHandler) GetIndelCodonOpeningScore(position int, indelSi
 	score := self.indelCodonOpeningBonus
 	if self.isPositionalIndelScoreSupported {
 		key := indelSign * position
-		hashed := simpleFNV1a(key)
+		hashed := u.SimpleFNV1a(key)
 		if self.positionalIndelScoresBloomFilter&hashed == hashed {
 			// the bloom filter removed most negatives; now search the real map
 			_score, ok := self.positionalIndelScores[key]
@@ -161,11 +149,10 @@ func New(
 	positionalIndelScores map[int]int,
 	isPositionalIndelScoreSupported bool) *GeneralScoreHandler {
 	var (
-		scoreScale         = 100
-		maxScore, minScore = posInf, negInf
-		maxScores          = [a.NumAminoAcids]int{}
-		minScores          = [a.NumAminoAcids]int{}
-		scoreMatrix        = [a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int{}
+		scoreScale                         = 100
+		minPositiveScore, maxNegativeScore = posInf, negInf
+		maxPositiveScore                   = negInf
+		scoreMatrix                        = [a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int{}
 	)
 
 	for _, aa1 := range a.AminoAcids {
@@ -179,14 +166,15 @@ func New(
 			if score < min {
 				min = score
 			}
-			maxScores[aa1] = max
-			minScores[aa1] = min
 		}
-		if maxScore > max {
-			maxScore = max
+		if maxPositiveScore < max {
+			maxPositiveScore = max
 		}
-		if minScore < min {
-			minScore = min
+		if minPositiveScore > max {
+			minPositiveScore = max
+		}
+		if maxNegativeScore < min {
+			maxNegativeScore = min
 		}
 	}
 
@@ -203,7 +191,7 @@ func New(
 	scaledPositionalIndelScores := map[int]int{}
 	for key, score := range positionalIndelScores {
 		// create a tiny bloom filter to prune negatives
-		positionalIndelScoresBloomFilter |= simpleFNV1a(key)
+		positionalIndelScoresBloomFilter |= u.SimpleFNV1a(key)
 		scaledPositionalIndelScores[key] = score * scoreScale
 	}
 	return &GeneralScoreHandler{
@@ -216,10 +204,9 @@ func New(
 		positionalIndelScores:            scaledPositionalIndelScores,
 		positionalIndelScoresBloomFilter: positionalIndelScoresBloomFilter,
 		isPositionalIndelScoreSupported:  isPositionalIndelScoreSupported,
-		maxScore:                         maxScore,
-		minScore:                         minScore,
-		maxScores:                        &maxScores,
-		minScores:                        &minScores,
+		maxPositiveScore:                 maxPositiveScore,
+		minPositiveScore:                 minPositiveScore,
+		maxNegativeScore:                 maxNegativeScore,
 		scoreMatrix:                      &scoreMatrix,
 	}
 }
