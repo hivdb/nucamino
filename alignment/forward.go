@@ -19,18 +19,23 @@ func (self *Alignment) calcExtInsScoreForward(
 	)
 	//var control string
 	if posN == 0 && posA > 0 {
-		score = q
+		score = 0 // no penalty for initial gaps
 		if !self.boundaryOnly {
 			prevMatrixIdx = self.getMatrixIndex(GENERAL, 0, 0)
 		}
 		//control = strings.Repeat("---", pos.a)
 	} else {
 		score = negInf
-		if self.supportPositionalIndel {
-			insOpeningScore, insExtensionScore = sh.GetPositionalIndelCodonScore(posA+self.aSeqOffset, true)
+		if posA == self.aSeqLen {
+			// no penalty for trailing gaps
+			r, q, insOpeningScore, insExtensionScore = 0, 0, 0, 0
 		} else {
-			insOpeningScore = self.constIndelCodonOpeningScore
-			insExtensionScore = self.constIndelCodonExtensionScore
+			if self.supportPositionalIndel {
+				insOpeningScore, insExtensionScore = sh.GetPositionalIndelCodonScore(posA+self.aSeqOffset, true)
+			} else {
+				insOpeningScore = self.constIndelCodonOpeningScore
+				insExtensionScore = self.constIndelCodonExtensionScore
+			}
 		}
 		if posN > 3 {
 			if cand = iScore30 + r + r + r + insExtensionScore; cand > score {
@@ -75,7 +80,7 @@ func (self *Alignment) calcDelScoreForward(
 	)
 	//var control string
 	if posN > 0 && posA == 0 {
-		score = self.q
+		score = 0 // no penalty for initial gaps
 		if !self.boundaryOnly {
 			prevMatrixIdx = self.getMatrixIndex(GENERAL, 0, 0)
 		}
@@ -96,11 +101,16 @@ func (self *Alignment) calcDelScoreForward(
 			mutScoreN0N = sh.GetSubstitutionScoreNoCache(posA+self.aSeqOffset, n.N, curNA, n.N, curAA)
 		}
 		score = negInf
-		if self.supportPositionalIndel {
-			delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA+self.aSeqOffset, false)
+		if posN == self.nSeqLen {
+			// no penalty for trailing gaps
+			q, r, delOpeningScore, delExtensionScore = 0, 0, 0, 0
 		} else {
-			delOpeningScore = self.constIndelCodonOpeningScore
-			delExtensionScore = self.constIndelCodonExtensionScore
+			if self.supportPositionalIndel {
+				delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA+self.aSeqOffset, false)
+			} else {
+				delOpeningScore = self.constIndelCodonOpeningScore
+				delExtensionScore = self.constIndelCodonExtensionScore
+			}
 		}
 		if cand := dScore01 + r + r + r + delExtensionScore; cand >= score {
 			score = cand
@@ -355,7 +365,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 				self.setPrevMatrixIndex(GENERAL, i, j, prevMtIdx)
 			}
 
-			if gScore00 >= maxScore {
+			if (i == self.nSeqLen || j == self.aSeqLen) && gScore00 > maxScore {
 				maxScore = gScore00
 				maxScorePosN = i
 				maxScorePosA = j

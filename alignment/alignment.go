@@ -34,6 +34,26 @@ func (self tScoreType) ToString() string {
 	}[self]
 }
 
+type AlignedSite struct {
+	PosAA    int
+	PosNA    int
+	LengthNA int
+}
+
+type AlignmentReport struct {
+	FirstAA           int
+	FirstNA           int
+	LastAA            int
+	LastNA            int
+	Mutations         []m.Mutation
+	FrameShifts       []f.FrameShift
+	AlignedSites      []AlignedSite
+	AminoAcidsLine    string
+	ControlLine       string
+	NucleicAcidsLine  string
+	IsSimpleAlignment bool
+}
+
 type Alignment struct {
 	nSeq                          []n.NucleicAcid
 	aSeq                          []a.AminoAcid
@@ -53,26 +73,7 @@ type Alignment struct {
 	constIndelCodonExtensionScore int
 	boundaryOnly                  bool
 	isSimpleAlignment             bool
-}
-
-type AlignedSite struct {
-	PosAA    int
-	PosNA    int
-	LengthNA int
-}
-
-type AlignmentReport struct {
-	FirstAA           int
-	FirstNA           int
-	LastAA            int
-	LastNA            int
-	Mutations         []m.Mutation
-	FrameShifts       []f.FrameShift
-	AlignedSites      []AlignedSite
-	AminoAcidsLine    string
-	ControlLine       string
-	NucleicAcidsLine  string
-	IsSimpleAlignment bool
+	report                        *AlignmentReport
 }
 
 func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler h.GeneralScoreHandler) (*Alignment, error) {
@@ -107,7 +108,11 @@ func padRightSpace(str string, length int) string {
 	return str + strings.Repeat(" ", (length-len(str)))
 }
 
-func (self *Alignment) GetReport() AlignmentReport {
+func (self *Alignment) GetReport() *AlignmentReport {
+	return self.report
+}
+
+func (self *Alignment) generateReport() bool {
 	var (
 		nLine, aLine, cLine              string
 		firstAA, lastAA, firstNA, lastNA int
@@ -241,7 +246,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 	sortutil.Reverse(mutList)
 	sortutil.Reverse(fsList)
 	sortutil.Reverse(siteList)
-	return AlignmentReport{
+	self.report = &AlignmentReport{
 		FirstAA:           firstAA + self.aSeqOffset,
 		FirstNA:           firstNA + self.nSeqOffset,
 		LastAA:            lastAA + self.aSeqOffset,
@@ -254,6 +259,7 @@ func (self *Alignment) GetReport() AlignmentReport {
 		NucleicAcidsLine:  nLine,
 		IsSimpleAlignment: self.isSimpleAlignment,
 	}
+	return true
 }
 
 func (self *Alignment) getMatrixIndex(scoreType tScoreType, posN int, posA int) int {
@@ -305,10 +311,10 @@ func (self *Alignment) align() bool {
 		self.isSimpleAlignment = true
 		self.endPosN = endPosN - self.nSeqOffset
 		self.endPosA = endPosA - self.aSeqOffset
-		return true
+		return self.generateReport()
 	}
 	typedPosLen := scoreTypeCount * (self.nSeqLen + 1) * (self.aSeqLen + 1)
 	self.nwMatrix = make([]int, typedPosLen)
 	self.endPosN, self.endPosA, self.maxScore, _ = self.calcScoreMainForward()
-	return true
+	return self.generateReport()
 }

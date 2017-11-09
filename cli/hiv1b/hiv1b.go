@@ -46,14 +46,14 @@ var AllPositionalIndelScores = map[Gene]map[int]int{
 	},
 }
 
-type alignmentResult struct {
+type tAlignmentResult struct {
 	Name   string
 	Report *alignment.AlignmentReport
 }
 
 func writeTSV(
 	file *os.File, textGenes []string,
-	seqs []fastareader.Sequence, resultMap map[string][]alignmentResult) {
+	seqs []fastareader.Sequence, resultMap map[string][]tAlignmentResult) {
 
 	genesCount := len(textGenes)
 	file.WriteString("Sequence Name")
@@ -109,9 +109,9 @@ func writeTSV(
 
 func writeJSON(
 	file *os.File, textGenes []string,
-	seqs []fastareader.Sequence, resultMap map[string][]alignmentResult) {
+	seqs []fastareader.Sequence, resultMap map[string][]tAlignmentResult) {
 
-	finalResultMap := make(map[string][]alignmentResult)
+	finalResultMap := make(map[string][]tAlignmentResult)
 	genesCount := len(textGenes)
 
 	for i := 0; i < genesCount; i++ {
@@ -198,8 +198,8 @@ func PerformAlignment(
 	var (
 		wg         = sync.WaitGroup{}
 		seqs       = fastareader.ReadSequences(input)
-		resultChan = make(chan []alignmentResult)
-		resultMap  = make(map[string][]alignmentResult)
+		resultChan = make(chan []tAlignmentResult)
+		resultMap  = make(map[string][]tAlignmentResult)
 	)
 	if !quiet {
 		logger.Printf("%d sequences were found from the input file.\n", len(seqs))
@@ -207,7 +207,7 @@ func PerformAlignment(
 	var seqChan = seqSlice2Chan(seqs, goroutines*4)
 	for i := 0; i < goroutines; i++ {
 		wg.Add(1)
-		go func(idx int, rChan chan<- []alignmentResult) {
+		go func(idx int, rChan chan<- []tAlignmentResult) {
 			scoreHandlers := make([]h.GeneralScoreHandler, genesCount)
 			for i, gene := range genes {
 				positionalIndelScores, isPositionalIndelScoreSupported := AllPositionalIndelScores[gene]
@@ -222,7 +222,7 @@ func PerformAlignment(
 			}
 			for seq := range seqChan {
 				isSimpleAlignment := true
-				result := make([]alignmentResult, genesCount)
+				result := make([]tAlignmentResult, genesCount)
 				for i := 0; i < genesCount; i++ {
 					aligned, err := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
 					if err != nil {
@@ -230,7 +230,7 @@ func PerformAlignment(
 						continue
 					}
 					r := aligned.GetReport()
-					result[i] = alignmentResult{seq.Name, &r}
+					result[i] = tAlignmentResult{seq.Name, r}
 					isSimpleAlignment = isSimpleAlignment && r.IsSimpleAlignment
 				}
 				rChan <- result
@@ -245,7 +245,7 @@ func PerformAlignment(
 			wg.Done()
 		}(i, resultChan)
 	}
-	go func(rChan chan<- []alignmentResult) {
+	go func(rChan chan<- []tAlignmentResult) {
 		wg.Wait()
 		if !quiet {
 			logger.Printf("\n")

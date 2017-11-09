@@ -19,15 +19,19 @@ func (self *Alignment) calcExtInsScoreBackward(
 	)
 	//var control string
 	if posN == self.nSeqLen && posA < self.aSeqLen {
-		score = q
+		score = 0
 		//control = strings.Repeat("---", pos.a)
 	} else {
 		score = negInf
-		if self.supportPositionalIndel {
-			insOpeningScore, insExtensionScore = sh.GetPositionalIndelCodonScore(posA-1, true)
+		if posA == 1 {
+			q, r, insOpeningScore, insExtensionScore = 0, 0, 0, 0
 		} else {
-			insOpeningScore = self.constIndelCodonOpeningScore
-			insExtensionScore = self.constIndelCodonExtensionScore
+			if self.supportPositionalIndel {
+				insOpeningScore, insExtensionScore = sh.GetPositionalIndelCodonScore(posA-1, true)
+			} else {
+				insOpeningScore = self.constIndelCodonOpeningScore
+				insExtensionScore = self.constIndelCodonExtensionScore
+			}
 		}
 		if posN < self.nSeqLen-3 {
 			if cand = iScore30 + r + r + r + insExtensionScore; cand > score {
@@ -59,7 +63,7 @@ func (self *Alignment) calcDelScoreBackward(
 	)
 	//var control string
 	if posN < self.nSeqLen && posA == self.aSeqLen {
-		score = self.q
+		score = 0
 		//control = strings.Repeat("+", pos.n)
 	} else if posN < self.nSeqLen {
 		var (
@@ -77,11 +81,15 @@ func (self *Alignment) calcDelScoreBackward(
 			mutScoreN0N = sh.GetSubstitutionScoreNoCache(posA, n.N, curNA, n.N, curAA)
 		}
 		score = negInf
-		if self.supportPositionalIndel {
-			delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA-1, false)
+		if posN == 1 {
+			q, r, delOpeningScore, delExtensionScore = 0, 0, 0, 0
 		} else {
-			delOpeningScore = self.constIndelCodonOpeningScore
-			delExtensionScore = self.constIndelCodonExtensionScore
+			if self.supportPositionalIndel {
+				delOpeningScore, delExtensionScore = sh.GetPositionalIndelCodonScore(posA-1, false)
+			} else {
+				delOpeningScore = self.constIndelCodonOpeningScore
+				delExtensionScore = self.constIndelCodonExtensionScore
+			}
 		}
 		if cand := dScore01 + r + r + r + delExtensionScore; cand >= score {
 			score = cand // "---"
@@ -253,7 +261,7 @@ func (self *Alignment) calcScoreMainBackward() (int, int, int) {
 
 			gScoresCur[i] = gScore00
 
-			if gScore00 >= maxScore {
+			if (i == 1 || j == 1) && gScore00 > maxScore {
 				maxScore = gScore00
 				maxScorePosN = i
 				maxScorePosA = j
