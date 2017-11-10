@@ -38,3 +38,4 @@ _local
 build
 
 tests/GB.local.seqs.hiv1.txt
+coverage.txt

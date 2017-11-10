@@ -1,9 +1,8 @@
-package fastareader_test
+package fastareader
 
 import (
 	"fmt"
 	n "github.com/hivdb/nucamino/types/nucleic"
-	"github.com/hivdb/nucamino/utils/fastareader"
 	"strings"
 	"testing"
 )
@@ -12,7 +11,7 @@ const (
 	MSG_NOT_EQUAL = "Expect %#v but received %#v"
 )
 
-func TestIterSequences(t *testing.T) {
+func TestReadSequences(t *testing.T) {
 	reader := strings.NewReader(`
 >TestSeq1
 ACGT
@@ -22,8 +21,8 @@ TG CA
 ;comment2
 WSMK.
   BDH-VN`)
-	seqChan := fastareader.IterSequences(reader)
-	seq := <-seqChan
+	seqs := ReadSequences(reader)
+	seq := seqs[0]
 	expectName := "TestSeq1"
 	if seq.Name != expectName {
 		t.Errorf(MSG_NOT_EQUAL, expectName, seq.Name)
@@ -33,7 +32,7 @@ WSMK.
 	if fmt.Sprintf("%#v", seq.Sequence) != expectSeq {
 		t.Errorf(MSG_NOT_EQUAL, expectSeq, seq.Sequence)
 	}
-	seq = <-seqChan
+	seq = seqs[1]
 	expectName = "TestSeq2"
 	if seq.Name != expectName {
 		t.Errorf(MSG_NOT_EQUAL, expectName, seq.Name)
@@ -43,5 +42,38 @@ WSMK.
 			n.W, n.S, n.M, n.K, n.N /*.*/, n.B, n.D, n.H, n.N /*-*/, n.V, n.N})
 	if fmt.Sprintf("%#v", seq.Sequence) != expectSeq {
 		t.Errorf(MSG_NOT_EQUAL, expectSeq, seq.Sequence)
+	}
+}
+
+func TestReadSequencesBranch1(t *testing.T) {
+	reader := strings.NewReader(`
+>
+ACGT
+TG CA
+>
+AAAA`)
+	seqs := ReadSequences(reader)
+	seq := seqs[0]
+	expectName := "unnamed sequence 1"
+	if seq.Name != expectName {
+		t.Errorf(MSG_NOT_EQUAL, expectName, seq.Name)
+	}
+	seq = seqs[1]
+	expectName = "unnamed sequence 2"
+	if seq.Name != expectName {
+		t.Errorf(MSG_NOT_EQUAL, expectName, seq.Name)
+	}
+}
+
+func TestReadSequencesBranch2(t *testing.T) {
+	reader := strings.NewReader(`
+ACGT
+TG CA
+AAAA`)
+	seqs := ReadSequences(reader)
+	seq := seqs[0]
+	expectName := "unnamed sequence"
+	if seq.Name != expectName {
+		t.Errorf(MSG_NOT_EQUAL, expectName, seq.Name)
 	}
 }
