@@ -16,11 +16,12 @@ func (self *Alignment) calcExtInsScoreForward(
 		sh                  = self.scoreHandler
 		q                   = self.q
 		r                   = self.r
+		calcMtIdx           = !self.boundaryOnly
 	)
 	//var control string
 	if posN == 0 && posA > 0 {
 		score = 0 // no penalty for initial gaps
-		if !self.boundaryOnly {
+		if calcMtIdx {
 			prevMatrixIdx = self.getMatrixIndex(GENERAL, 0, 0)
 		}
 		//control = strings.Repeat("---", pos.a)
@@ -40,13 +41,13 @@ func (self *Alignment) calcExtInsScoreForward(
 		if posN > 3 {
 			if cand = iScore30 + r + r + r + insExtensionScore; cand > score {
 				score = cand
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(INS, posN-3, posA) //, "+++"
 				}
 			}
 			if cand = gScore30 + q + r + r + r + insOpeningScore + insExtensionScore; cand > score {
 				score = cand
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-3, posA) //, "+++"
 				}
 			}
@@ -54,14 +55,14 @@ func (self *Alignment) calcExtInsScoreForward(
 		if posN > 2 {
 			if cand = gScore20 + q + r + r; cand > score {
 				score = cand
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA) //, "++"
 				}
 			}
 		}
 		if cand = gScore10 + q + r; cand > score {
 			score = cand
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-1, posA) //, "+"
 			}
 		}
@@ -77,11 +78,12 @@ func (self *Alignment) calcDelScoreForward(
 		prevMatrixIdx int
 		score         = negInf
 		sh            = self.scoreHandler
+		calcMtIdx     = !self.boundaryOnly
 	)
 	//var control string
 	if posN > 0 && posA == 0 {
 		score = 0 // no penalty for initial gaps
-		if !self.boundaryOnly {
+		if calcMtIdx {
 			prevMatrixIdx = self.getMatrixIndex(GENERAL, 0, 0)
 		}
 		//control = strings.Repeat("+", pos.n)
@@ -93,8 +95,7 @@ func (self *Alignment) calcDelScoreForward(
 			prevNA               n.NucleicAcid
 			curNA                = self.getNA(posN)
 			curAA                = self.getAA(posA)
-			q                    = self.q
-			r                    = self.r
+			q, q2, r, r2         = self.q, self.q, self.r, self.r
 			mutScoreN0N, present = sh.GetCachedSubstitutionScore(posA+self.aSeqOffset, n.N, curNA, n.N, curAA)
 		)
 		if !present {
@@ -114,14 +115,14 @@ func (self *Alignment) calcDelScoreForward(
 		}
 		if cand := dScore01 + r + r + r + delExtensionScore; cand >= score {
 			score = cand
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				prevMatrixIdx = self.getMatrixIndex(DEL, posN, posA-1) //, "---"
 			}
 		}
 
 		if cand := gScore01 + q + r + r + r + delOpeningScore + delExtensionScore; cand > score {
 			score = cand
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				prevMatrixIdx = self.getMatrixIndex(GENERAL, posN, posA-1) //, "---"
 			}
 		}
@@ -132,23 +133,23 @@ func (self *Alignment) calcDelScoreForward(
 		}
 		if cand := gScore11 + tmpScore + q + r + r; cand > score {
 			score = cand
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-1, posA-1) //, ".--"
 			}
 		}
 
-		if cand := gScore11 + mutScoreN0N + q + r + q + r; cand > score {
+		if cand := gScore11 + mutScoreN0N + q2 + r2 + q + r; cand > score {
 			score = cand
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-1, posA-1) //, "-.-"
 			}
 		}
 
 		if posN > 1 {
 			prevNA = self.getNA(posN - 1)
-			if cand := dScore11 + mutScoreN0N + q + r + r; cand >= score {
+			if cand := dScore11 + mutScoreN0N + r2 + q + r; cand >= score {
 				score = cand
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(DEL, posN-1, posA-1) //, "-.-"
 				}
 			}
@@ -159,7 +160,7 @@ func (self *Alignment) calcDelScoreForward(
 			}
 			if cand := gScore21 + tmpScore + q + r; cand >= score {
 				score = cand
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA-1) //, "..-"
 				}
 			}
@@ -177,10 +178,11 @@ func (self *Alignment) calcScoreForward(
 		prevMatrixIdx int
 		isSimple      bool
 		score         = negInf
+		calcMtIdx     = !self.boundaryOnly
 	)
 	if posN == 0 || posA == 0 {
 		score = 0
-		if !self.boundaryOnly {
+		if calcMtIdx {
 			prevMatrixIdx = self.getMatrixIndex(GENERAL, posN, posA)
 		}
 	} else {
@@ -201,7 +203,7 @@ func (self *Alignment) calcScoreForward(
 		if cand := /* #1 */ gScore11 + mutScoreNN0 + q + r + r; cand > score {
 			score = cand
 			isSimple = false
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-1, posA-1) //, "--."
 			}
 		}
@@ -218,21 +220,21 @@ func (self *Alignment) calcScoreForward(
 			if cand := /* #2 */ gScore21 + tmpScore + q + r; cand > score {
 				score = cand
 				isSimple = false
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA-1) //, ".-."
 				}
 			}
 			if cand := /* #3 */ gScore21 + mutScoreN10 + q + r; cand > score {
 				score = cand
 				isSimple = false
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-2, posA-1) //, "-.."
 				}
 			}
 			if cand := /* #7 */ dScore11 + mutScoreNN0 + r + r; cand >= score {
 				score = cand
 				isSimple = false
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(DEL, posN-1, posA-1) //, "--."
 				}
 			}
@@ -246,7 +248,7 @@ func (self *Alignment) calcScoreForward(
 			if cand := /* #4 */ gScore31 + tmpScore; cand > score {
 				score = cand
 				isSimple = true
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(GENERAL, posN-3, posA-1) //, "..."
 				}
 			}
@@ -254,7 +256,7 @@ func (self *Alignment) calcScoreForward(
 			if cand := /* #8 */ dScore21 + mutScoreN10 + r; cand >= score {
 				score = cand
 				isSimple = false
-				if !self.boundaryOnly {
+				if calcMtIdx {
 					prevMatrixIdx = self.getMatrixIndex(DEL, posN-2, posA-1) //, "-.."
 				}
 			}
@@ -262,14 +264,14 @@ func (self *Alignment) calcScoreForward(
 		if cand := /* #9 */ iScore00; cand >= score {
 			score = cand
 			isSimple = false
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				prevMatrixIdx = self.getMatrixIndex(INS, posN, posA) //, ""
 			}
 		}
 		if cand := /* #10 */ dScore00; cand >= score {
 			score = cand
 			isSimple = false
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				prevMatrixIdx = self.getMatrixIndex(DEL, posN, posA) //, ""
 			}
 		}
@@ -303,6 +305,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 		dScore11, dScore21 int
 		prevMtIdx          int
 		isSimple           bool
+		calcMtIdx          = !self.boundaryOnly
 	)
 
 	for j := 0; j <= self.aSeqLen; j++ {
@@ -330,7 +333,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 				i, j, gScore30,
 				iScore30, gScore20, gScore10)
 
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				self.setPrevMatrixIndex(INS, i, j, prevMtIdx)
 			}
 
@@ -341,7 +344,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 
 			dScoresCur[i] = dScore00
 
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				self.setPrevMatrixIndex(DEL, i, j, prevMtIdx)
 			}
 
@@ -361,7 +364,7 @@ func (self *Alignment) calcScoreMainForward() (int, int, int, int) {
 			}
 			gScoresCur[i] = gScore00
 
-			if !self.boundaryOnly {
+			if calcMtIdx {
 				self.setPrevMatrixIndex(GENERAL, i, j, prevMtIdx)
 			}
 

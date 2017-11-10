@@ -2,7 +2,6 @@ package alignment
 
 import (
 	"errors"
-	// "fmt"
 	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
 	f "github.com/hivdb/nucamino/types/frameshift"
@@ -127,11 +126,24 @@ func (self *Alignment) generateReport() bool {
 		endMtIdx                         = self.getMatrixIndex(GENERAL, self.endPosN, self.endPosA)
 		singleMtLen                      = (self.nSeqLen + 1) * (self.aSeqLen + 1) * 2
 	)
-
 	for endMtIdx%singleMtLen >= startMtIdx%singleMtLen {
 		scoreType, posN, posA := self.getTypedPos(endMtIdx)
-		// fmt.Fprintf(os.Stderr, "%s (%d,%d,%d,%d)\n", lastScoreType, LastPosN, posN, LastPosA, posA)
+		if scoreType != GENERAL && (posN == 0 || posA == 0) {
+			break
+		}
+		if self.isSimpleAlignment {
+			endMtIdx = self.getMatrixIndex(GENERAL, posN-3, posA-1)
+		} else {
+			endMtIdx = self.nwMatrix[endMtIdx]
+		}
 		if lastAA == 0 && lastNA == 0 {
+			if scoreType != GENERAL {
+				continue
+			}
+			nextScoreType, _, _ := self.getTypedPos(endMtIdx)
+			if nextScoreType != GENERAL {
+				continue
+			}
 			lastAA, lastNA = posA, posN
 		}
 		firstAA, firstNA = posA+1, posN+1
@@ -211,11 +223,6 @@ func (self *Alignment) generateReport() bool {
 			aLine = partialALine + aLine
 			cLine = partialCLine + cLine
 		}
-		if self.isSimpleAlignment {
-			endMtIdx = self.getMatrixIndex(GENERAL, posN-3, posA-1)
-		} else {
-			endMtIdx = self.nwMatrix[endMtIdx]
-		}
 		if lastScoreType == INS {
 			hasUnprocessedNAs = true
 		} else if !hasUnprocessedNAs {
@@ -288,7 +295,10 @@ func (self *Alignment) getAA(aPos int) a.AminoAcid {
 }
 
 func (self *Alignment) align() bool {
-	var endPosN, endPosA, simplesCount int
+	var (
+		startPosN, startPosA           int
+		endPosN, endPosA, simplesCount int
+	)
 	self.boundaryOnly = true
 	// set boundary for nSeq, so we don't have to build a huge nSeqLen * aSeqLen matrix
 	endPosN, endPosA, self.maxScore, simplesCount = self.calcScoreMainForward()
@@ -296,10 +306,15 @@ func (self *Alignment) align() bool {
 	self.nSeqLen = len(self.nSeq)
 	self.aSeq = self.aSeq[:endPosA]
 	self.aSeqLen = len(self.aSeq)
-	startPosN, startPosA, _ := self.calcScoreMainBackward()
+	// if endPosA == simplesCount || (endPosN%3 == 0 && endPosN/3 == simplesCount) {
+	// 	startPosN = endPosN - simplesCount*3 + 1
+	// 	startPosA = endPosA - simplesCount + 1
+	// } else {
+	startPosN, startPosA, _ = self.calcScoreMainBackward()
 	if endPosN <= startPosN {
 		return false
 	}
+	// }
 	self.nSeqOffset = startPosN - 1
 	self.aSeqOffset = startPosA - 1
 	self.boundaryOnly = false

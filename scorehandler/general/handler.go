@@ -10,17 +10,17 @@ import (
 const negInf = -int((^uint(0))>>1) - 1
 
 // FNV algorithm was used to generated index number for the bloom filter
-const FNVPrime = 16777619
-const FNVOffsetBasis = 2166136261
+const FNVPrime int64 = 16777619
+const FNVOffsetBasis int64 = 2166136261
 
-func simpleFNV1a(key int) int {
+func simpleFNV1a(key int) int64 {
 	// http://www.isthe.com/chongo/tech/comp/fnv/index.html
 	// The possible values of "key" are between -50000 and 50000
 	// and there's no collision in this region
 
 	// This is not a strict implementation of FNV (the key is not an octet),
 	// however it reduced the collisions of bloom filter in HIV-1 POL case
-	return (FNVOffsetBasis ^ key) * FNVPrime
+	return (FNVOffsetBasis ^ int64(key)) * FNVPrime
 }
 
 type GeneralScoreHandler struct {
@@ -31,7 +31,7 @@ type GeneralScoreHandler struct {
 	indelCodonOpeningBonus           int
 	indelCodonExtensionBonus         int
 	positionalIndelScores            map[int]int
-	positionalIndelScoresBloomFilter int
+	positionalIndelScoresBloomFilter int64
 	isPositionalIndelScoreSupported  bool
 	scoreMatrix                      *[a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int
 }
@@ -152,7 +152,7 @@ func New(
 			}
 		}
 	}
-	positionalIndelScoresBloomFilter := 0
+	var positionalIndelScoresBloomFilter int64 = 0
 	scaledPositionalIndelScores := map[int]int{}
 	for key, score := range positionalIndelScores {
 		// create a tiny bloom filter to prune negatives
