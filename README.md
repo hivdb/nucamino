@@ -1,6 +1,9 @@
 NucAmino
 ========
 
+[![Travis CI](https://api.travis-ci.org/hivdb/nucamino.svg?branch=master)](https://travis-ci.org/hivdb/nucamino)
+[![codecov](https://codecov.io/gh/hivdb/nucamino/branch/master/graph/badge.svg)](https://codecov.io/gh/hivdb/nucamino)
+
 NucAmino is a nucleotide to amino acid alignment program optimized for virus
 gene sequences.
 
