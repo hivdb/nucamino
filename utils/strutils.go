@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"strings"
 	"unicode"
 )
 
@@ -13,4 +14,8 @@ func StripWhiteSpace(text string) string {
 		}
 	}
 	return buffer.String()
+}
+
+func PadRightSpace(text string, length int) string {
+	return text + strings.Repeat(" ", (length-len(text)))
 }

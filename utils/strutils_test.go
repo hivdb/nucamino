@@ -12,5 +12,12 @@ func TestStripWhiteSpace(t *testing.T) {
 	if result != expectResult {
 		t.Errorf(MSG_NOT_EQUAL, expectResult, result)
 	}
+}
 
+func TestPadRightSpace(t *testing.T) {
+	result := PadRightSpace("AB ", 8)
+	expect := "AB      "
+	if result != expect {
+		t.Errorf(MSG_NOT_EQUAL, expect, result)
+	}
 }

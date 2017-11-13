@@ -208,10 +208,10 @@ func PerformAlignment(
 	for i := 0; i < goroutines; i++ {
 		wg.Add(1)
 		go func(idx int, rChan chan<- []tAlignmentResult) {
-			scoreHandlers := make([]h.GeneralScoreHandler, genesCount)
+			scoreHandlers := make([]*h.GeneralScoreHandler, genesCount)
 			for i, gene := range genes {
 				positionalIndelScores, isPositionalIndelScoreSupported := AllPositionalIndelScores[gene]
-				scoreHandlers[i] = *h.New(
+				scoreHandlers[i] = h.New(
 					stopCodonPenalty,
 					gapOpeningPenalty,
 					gapExtensionPenalty,
@@ -224,11 +224,7 @@ func PerformAlignment(
 				isSimpleAlignment := true
 				result := make([]tAlignmentResult, genesCount)
 				for i := 0; i < genesCount; i++ {
-					aligned, err := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
-					if err != nil {
-						logger.Printf("%s: %s", seq.Name, err)
-						continue
-					}
+					aligned := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
 					r := aligned.GetReport()
 					result[i] = tAlignmentResult{seq.Name, r}
 					isSimpleAlignment = isSimpleAlignment && r.IsSimpleAlignment

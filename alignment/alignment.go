@@ -1,14 +1,13 @@
 package alignment
 
 import (
-	"errors"
 	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
 	f "github.com/hivdb/nucamino/types/frameshift"
 	m "github.com/hivdb/nucamino/types/mutation"
 	n "github.com/hivdb/nucamino/types/nucleic"
+	u "github.com/hivdb/nucamino/utils"
 	sortutil "github.com/pmylund/sortutil"
-	// "os"
 	"strings"
 )
 
@@ -18,20 +17,10 @@ const (
 	GENERAL tScoreType = iota
 	INS                // E
 	DEL                // F
-	//CODON_INS            // C
 )
 
 const negInf = -int((^uint(0))>>1) - 1
 const scoreTypeCount = 3
-
-func (self tScoreType) ToString() string {
-	return map[tScoreType]string{
-		GENERAL: "GENERAL",
-		INS:     "INS",
-		DEL:     "DEL",
-		//CODON_INS: "CODON_INS",
-	}[self]
-}
 
 type AlignedSite struct {
 	PosAA    int
@@ -63,7 +52,7 @@ type Alignment struct {
 	endPosN                       int
 	endPosA                       int
 	maxScore                      int
-	scoreHandler                  h.GeneralScoreHandler
+	scoreHandler                  *h.GeneralScoreHandler
 	nwMatrix                      []int
 	q                             int
 	r                             int
@@ -75,7 +64,7 @@ type Alignment struct {
 	report                        *AlignmentReport
 }
 
-func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler h.GeneralScoreHandler) (*Alignment, error) {
+func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler *h.GeneralScoreHandler) *Alignment {
 	nSeqLen := len(nSeq)
 	aSeqLen := len(aSeq)
 	supportPositionalIndel := scoreHandler.IsPositionalIndelScoreSupported()
@@ -94,17 +83,8 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler h.Gener
 		constIndelCodonOpeningScore:   constIndelCodonOpeningScore,
 		constIndelCodonExtensionScore: constIndelCodonExtensionScore,
 	}
-
-	success := result.align()
-	if success {
-		return result, nil
-	} else {
-		return nil, errors.New("sequence misaligned")
-	}
-}
-
-func padRightSpace(str string, length int) string {
-	return str + strings.Repeat(" ", (length-len(str)))
+	result.align()
+	return result
 }
 
 func (self *Alignment) GetReport() *AlignmentReport {
@@ -192,17 +172,17 @@ func (self *Alignment) generateReport() bool {
 			/* those are only for generate three lines */
 			if LastPosA > posA && LastPosN-posN > 2 && mutation == nil {
 				partialNLine += n.WriteString(self.nSeq[posN : posN+3])
-				partialALine += padRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
+				partialALine += u.PadRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
 				partialCLine += ":::"
 			} else {
 				if mutation != nil {
 					partialCLine += mutation.Control
 					if mutation.IsDeletion {
 						partialNLine += "   "
-						partialALine += padRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
+						partialALine += u.PadRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
 					} else {
 						partialNLine += mutation.CodonText
-						partialALine += padRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
+						partialALine += u.PadRightSpace(a.WriteString(self.aSeq[posA:LastPosA]), 3)
 						if mutation.IsInsertion {
 							for _, insCodon := range mutation.GetInsertedCodons() {
 								partialNLine += insCodon.ToString()
@@ -234,22 +214,6 @@ func (self *Alignment) generateReport() bool {
 			break
 		}
 	}
-	/*print(aLine, ")\n")
-	print(cLine, ")\n")
-	print(nLine, ")\n")
-	print("First AA: ", firstAA, "\n")
-	print("First NA: ", firstNA, "\n")
-	print("Last AA: ", lastAA, "\n")
-	print("Last NA: ", lastNA, "\n")
-	for _, mutation := range mutList {
-		print(mutation.ToString(), ", ")
-	}
-	print("\n")
-	for _, frameshift := range fsList {
-		print(frameshift.ToString(), ", ")
-	}
-	print("\n")
-	print("Total Score: ", self.maxScore, "\n")*/
 	sortutil.Reverse(mutList)
 	sortutil.Reverse(fsList)
 	sortutil.Reverse(siteList)
@@ -306,15 +270,7 @@ func (self *Alignment) align() bool {
 	self.nSeqLen = len(self.nSeq)
 	self.aSeq = self.aSeq[:endPosA]
 	self.aSeqLen = len(self.aSeq)
-	// if endPosA == simplesCount || (endPosN%3 == 0 && endPosN/3 == simplesCount) {
-	// 	startPosN = endPosN - simplesCount*3 + 1
-	// 	startPosA = endPosA - simplesCount + 1
-	// } else {
 	startPosN, startPosA, _ = self.calcScoreMainBackward()
-	if endPosN <= startPosN {
-		return false
-	}
-	// }
 	self.nSeqOffset = startPosN - 1
 	self.aSeqOffset = startPosA - 1
 	self.boundaryOnly = false
