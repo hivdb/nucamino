@@ -58,8 +58,8 @@ func MakeFrameShift(position, naPosition int, allNAs []n.NucleicAcid) *FrameShif
 		// but not two separated ones.
 		frameshift = New(
 			position,
-			naPosition+lenAllNAs-1,
-			nil,
+			naPosition+lenAllNAs,
+			[]n.NucleicAcid{},
 			DELETION,
 			3-lenAllNAs)
 	}
