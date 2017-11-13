@@ -3,7 +3,6 @@ package codon
 import (
 	a "github.com/hivdb/nucamino/types/amino"
 	. "github.com/hivdb/nucamino/types/nucleic"
-	"strings"
 )
 
 type Codon struct {
@@ -141,8 +140,13 @@ func FindBestMatch(nas []NucleicAcid, aa a.AminoAcid) Codon {
 	} else if lenNAs == 2 {
 		partialCodon = &Codon{nas[0], nas[1], N} // no match fallback
 		for _, p := range twoNAsCases {
-			codons0 := aminoAcidSearchMatrix[aa][p[0]][nas[0]]
-			codons1 := aminoAcidSearchMatrix[aa][p[1]][nas[1]]
+			codons0, codons1 := []Codon{}, []Codon{}
+			for _, na := range GetUnambiguousNucleicAcids(nas[0]) {
+				codons0 = append(codons0, aminoAcidSearchMatrix[aa][p[0]][na]...)
+			}
+			for _, na := range GetUnambiguousNucleicAcids(nas[1]) {
+				codons1 = append(codons1, aminoAcidSearchMatrix[aa][p[1]][na]...)
+			}
 			pNAs := [3]NucleicAcid{N, N, N}
 			pNAs[p[0]] = nas[0]
 			pNAs[p[1]] = nas[1]
@@ -157,7 +161,10 @@ func FindBestMatch(nas []NucleicAcid, aa a.AminoAcid) Codon {
 	} else if lenNAs == 1 {
 		partialCodon = &Codon{nas[0], N, N} // no match fallback
 		for i := 0; i < 3; i++ {
-			codons := aminoAcidSearchMatrix[aa][i][nas[0]]
+			codons := []Codon{}
+			for _, na := range GetUnambiguousNucleicAcids(nas[0]) {
+				codons = append(codons, aminoAcidSearchMatrix[aa][i][na]...)
+			}
 			if len(codons) > 0 {
 				pNAs := [3]NucleicAcid{N, N, N}
 				pNAs[i] = nas[0]
@@ -232,39 +239,6 @@ func (self *Codon) GetUnambiguousCodons() []Codon {
 		}
 	}
 	return codons
-}
-
-func GetFinalControlLine(nas []NucleicAcid, refs []a.AminoAcid) string {
-	lenNAs := len(nas)
-	lenAAs := len(refs)
-	var control string
-	if lenNAs >= 3 && lenAAs == 1 {
-		// matched codon
-		codon := Codon{nas[0], nas[1], nas[2]}
-		allMatched := true
-		for _, ucodon := range codon.GetUnambiguousCodons() {
-			allMatched = allMatched && CodonToAminoAcidTable[ucodon] == refs[0]
-		}
-		if allMatched {
-			control = ":::"
-		} else {
-			control = "..."
-		}
-		if lenNAs > 3 {
-			// trailing insertion gap
-			control += strings.Repeat("+", lenNAs-3)
-		}
-	} else if lenNAs > 0 && lenAAs == 1 {
-		// trailling deletion gap
-		control = strings.Repeat(".", lenNAs) + strings.Repeat("-", 3-lenNAs)
-	} else if lenNAs == 0 && lenAAs == 1 {
-		// deletion codon
-		control = "---"
-	} else { // lenAAs == 0
-		// ext-codon insertion gap
-		control = strings.Repeat("+", lenNAs)
-	}
-	return control
 }
 
 func (self *Codon) ToString() string {

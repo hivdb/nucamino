@@ -20,7 +20,7 @@ func TestToString(t *testing.T) {
 	for i := 0; i < len(aminoAcids); i++ {
 		aaText := ToString(aminoAcids[i])
 		if aaText != expects[i] {
-			t.Errorf("Expect string %#v but got %#v", expects[i], aaText)
+			t.Errorf(MSG_NOT_EQUAL, expects[i], aaText)
 		}
 	}
 }
@@ -29,7 +29,7 @@ func TestReadString(t *testing.T) {
 	result := ReadString("ABCDEFG")
 	expect := []AminoAcid{A, C, D, E, F, G} // ignore "B"
 	if !reflect.DeepEqual(result, expect) {
-		t.Errorf("Expect %#v but got %#v", expect, result)
+		t.Errorf(MSG_NOT_EQUAL, expect, result)
 	}
 }
 
@@ -37,6 +37,6 @@ func TestWriteString(t *testing.T) {
 	result := WriteString([]AminoAcid{A, C, D, E, F, G, V, W, Y, Y})
 	expect := "ACDEFGVWYY"
 	if result != expect {
-		t.Errorf("Expect %#v but got %#v", expect, result)
+		t.Errorf(MSG_NOT_EQUAL, expect, result)
 	}
 }
