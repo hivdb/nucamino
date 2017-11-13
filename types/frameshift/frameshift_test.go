@@ -64,7 +64,7 @@ func TestMakeFrameShift(t *testing.T) {
 	expect = &FrameShift{
 		155,
 		677 + 2,
-		[]n.NucleicAcid{},
+		nil,
 		"",
 		DELETION,
 		false,

@@ -148,8 +148,6 @@ func MakeMutation(
 	return mutation
 }
 
-func (self *Mutation) GetCodon() c.Codon            { return *self.codon }
-func (self *Mutation) GetReference() a.AminoAcid    { return self.reference }
 func (self *Mutation) GetInsertedCodons() []c.Codon { return self.insertedCodons }
 
 func (self *Mutation) ToString() string {
