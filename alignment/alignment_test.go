@@ -203,3 +203,68 @@ func TestGetReport(t *testing.T) {
 		t.Errorf(MSG_NOT_EQUAL, expect, result)
 	}
 }
+
+func TestPosInsCodonScore(t *testing.T) {
+	nseq := n.ReadString("ACAGTRTTAGTAGGACCTACACCTTTTTTTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
+	handler := h.New(4, 10, 2, 0, 2, nil, false)
+	aln := NewAlignment(nseq, ASEQ, handler)
+	result := aln.GetReport()
+	//           1  2  3  4  5  6  7  8        9 10 11 12 13 14 15 16 17 18 19
+	//         ACAGTRTTAGTAGGACCTACACCTttttttGCCAACATAATTGGAAGAAATCTGTTGACYCAG
+	expect := "::::::::::::::::::::::::++++++...::::::::::::::::::::::::::::::"
+	if result.ControlLine != expect {
+		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
+	}
+	handler = h.New(4, 10, 2, 0, 2, map[int]int{
+		8:  -6,
+		9:  -3,
+		10: 6,
+		11: -3,
+		12: -6,
+	}, true)
+	aln = NewAlignment(nseq, ASEQ, handler)
+	result = aln.GetReport()
+	//          1  2  3  4  5  6  7  8  9 10       11 12 13 14 15 16 17 18 19
+	//        ACAGTRTTAGTAGGACCTACACCTttttttGCCAACATAATTGGAAGAAATCTGTTGACYCAG
+	expect = "::::::::::::::::::::::::......++++++:::::::::::::::::::::::::::"
+	if result.ControlLine != expect {
+		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
+	}
+	nseq = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACGGGATAATTGGAAGAAATCTGTTGACYCAG")
+	aln = NewAlignment(nseq, ASEQ, handler)
+	result = aln.GetReport()
+	//          1  2  3  4  5  6  7  8  9 10    11 12 13 14 15 16 17 18 19
+	//        ACAGTRTTAGTAGGACCTACACCTGCCAACgggATAATTGGAAGAAATCTGTTGACYCAG
+	expect = "::::::::::::::::::::::::...:::+++:::::::::::::::::::::::::::"
+	if result.ControlLine != expect {
+		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
+	}
+	nseq = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACATArrrATTGGAAGAAATCTGTTGACYCAG")
+	aln = NewAlignment(nseq, ASEQ, handler)
+	result = aln.GetReport()
+	//          1  2  3  4  5  6  7  8  9 10    11 12 13 14 15 16 17 18 19
+	//        ACAGTRTTAGTAGGACCTACACCTGCCAACATArrrATTGGAAGAAATCTGTTGACYCAG
+	expect = "::::::::::::::::::::::::...:::+++...::::::::::::::::::::::::"
+	if result.ControlLine != expect {
+		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
+	}
+	nseq = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACATAATTGrrrGAAGAAATCTGTTGACYCAG")
+	aln = NewAlignment(nseq, ASEQ, handler)
+	result = aln.GetReport()
+	//          1  2  3  4  5  6  7  8  9 10 11 12 13    14 15 16 17 18 19
+	//        ACAGTRTTAGTAGGACCTACACCTGCCAACATAATTGrrrGAAGAAATCTGTTGACYCAG
+	expect = "::::::::::::::::::::::::...:::::::::...+++::::::::::::::::::"
+	if result.ControlLine != expect {
+		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
+	}
+	nseq = n.ReadString("ACAGTRTTAGTAGGACCcccTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
+	aln = NewAlignment(nseq, ASEQ, handler)
+	result = aln.GetReport()
+	//          1  2  3  4  5  6     7  8  9 10 11 12 13 14 15 16 17 18 19
+	//        ACAGTRTTAGTAGGACCcccTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG
+	expect = "::::::::::::::::::+++::::::...::::::::::::::::::::::::::::::"
+	if result.ControlLine != expect {
+		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
+	}
+
+}
