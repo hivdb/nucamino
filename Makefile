@@ -13,6 +13,7 @@ pprof: dockerimage
 pprof-pdf: dockerimage
 	@docker rm -f nucamino-pprof 2>/dev/null || true
 	@docker run --rm -it --name nucamino-pprof --volume $(shell pwd)/.goenv:/go --volume $(shell pwd):${APPROOT} nucamino-dev ${APPROOT}/hack/pprof.sh pdf
+	@open _local/pprof.pdf
 
 build: dockerimage
 	@docker rm -f nucamino-build 2>/dev/null || true
@@ -24,6 +25,10 @@ cross-build: dockerimage
 
 shell: dockerimage
 	@docker rm -f nucamino-build 2>/dev/null || true
-	@docker run --rm -it --name nucamino-build --volume $(shell pwd)/.goenv:/go --volume $(shell pwd):${APPROOT} -e GOOS=${GOOS} -e GOARCH=${GOARCH} nucamino-dev /bin/sh
+	@docker run --rm -it --name nucamino-build --volume $(shell pwd)/.goenv:/go --volume $(shell pwd):${APPROOT} nucamino-dev /bin/sh
+
+test: dockerimage
+	@docker rm -f nucamino-test 2>/dev/null || true
+	@docker run --rm -it --name nucamino-test --volume $(shell pwd)/.goenv:/go --volume $(shell pwd):${APPROOT} nucamino-dev ${APPROOT}/hack/test.sh
 
 .PHONY: dockerimage pprof

@@ -203,8 +203,8 @@ func (self *Alignment) calcScoreBackward(
 func (self *Alignment) calcScoreMainBackward() (int, int, int) {
 	var (
 		maxScore     = negInf
-		maxScorePosN = 0
-		maxScorePosA = 0
+		maxScorePosN = self.nSeqLen
+		maxScorePosA = self.aSeqLen
 		gScores      = make([]int, self.nSeqLen+1)
 		dScores      = make([]int, self.nSeqLen+1)
 		gScoresCur   = make([]int, self.nSeqLen+1)

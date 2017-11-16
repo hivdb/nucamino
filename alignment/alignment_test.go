@@ -1,6 +1,7 @@
 package alignment
 
 import (
+	"errors"
 	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
 	f "github.com/hivdb/nucamino/types/frameshift"
@@ -21,7 +22,7 @@ var (
 
 func TestNewAlignment(t *testing.T) {
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	result := NewAlignment(NSEQ, ASEQ, handler)
+	result, _ := NewAlignment(NSEQ, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
 		nSeq: NSEQ, aSeq: ASEQ, nSeqLen: 57, aSeqLen: 19,
@@ -41,7 +42,7 @@ func TestNewAlignment(t *testing.T) {
 func TestNewAlignmentWithIns(t *testing.T) {
 	NSEQ_INS := n.ReadString("ACAGTRTTAGTAGGACCTTTTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	result := NewAlignment(NSEQ_INS, ASEQ, handler)
+	result, _ := NewAlignment(NSEQ_INS, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
 		nSeq: NSEQ_INS, aSeq: ASEQ, nSeqLen: 60, aSeqLen: 19,
@@ -62,7 +63,7 @@ func TestNewAlignmentWithIns(t *testing.T) {
 func TestNewAlignmentWithInsFs(t *testing.T) {
 	NSEQ_INSFS := n.ReadString("ACAGTRTTAGTAGGACCTTTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	result := NewAlignment(NSEQ_INSFS, ASEQ, handler)
+	result, _ := NewAlignment(NSEQ_INSFS, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
 		nSeq: NSEQ_INSFS, aSeq: ASEQ, nSeqLen: 59, aSeqLen: 19,
@@ -83,7 +84,7 @@ func TestNewAlignmentWithInsFs(t *testing.T) {
 func TestNewAlignmentWithDelFs(t *testing.T) {
 	NSEQ_DELFS := n.ReadString("AAGTRTTAGTAGGACCTACACCTGCCAACATAATTGGAGAAATCTGTTGACYCAG")
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	result := NewAlignment(NSEQ_DELFS, ASEQ, handler)
+	result, _ := NewAlignment(NSEQ_DELFS, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
 		nSeq: NSEQ_DELFS, aSeq: ASEQ, nSeqLen: 55, aSeqLen: 19,
@@ -104,7 +105,7 @@ func TestNewAlignmentWithDelFs(t *testing.T) {
 func TestNewAlignmentWithDel(t *testing.T) {
 	NSEQ_DEL := n.ReadString("ACAGTRTTAGTAGGACCTACACCTAACATAATTGGAAGAAATCTGTTGACYCA")
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	result := NewAlignment(NSEQ_DEL, ASEQ, handler)
+	result, _ := NewAlignment(NSEQ_DEL, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
 		nSeq: NSEQ_DEL, aSeq: ASEQ, nSeqLen: 53, aSeqLen: 19,
@@ -124,7 +125,7 @@ func TestNewAlignmentWithDel(t *testing.T) {
 
 func TestGetMatrixIndex(t *testing.T) {
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	aln := NewAlignment(NSEQ, ASEQ, handler)
+	aln, _ := NewAlignment(NSEQ, ASEQ, handler)
 	result := aln.getMatrixIndex(INS, 14, 5)
 	expect := 1445
 	if result != expect {
@@ -144,7 +145,7 @@ func TestGetMatrixIndex(t *testing.T) {
 
 func TestGetTypedPos(t *testing.T) {
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	aln := NewAlignment(NSEQ, ASEQ, handler)
+	aln, _ := NewAlignment(NSEQ, ASEQ, handler)
 	st, pn, pa := aln.getTypedPos(1445)
 	if st != INS || pn != 14 || pa != 5 {
 		t.Errorf(MSG_NOT_EQUAL, []int{int(INS), 14, 5}, []int{int(st), pn, pa})
@@ -159,10 +160,24 @@ func TestGetTypedPos(t *testing.T) {
 	}
 }
 
+func TestMisaligned(t *testing.T) {
+	nseq := n.ReadString("AAAAAAAAAAAAAAAAAA")
+	aseq := a.ReadString("GGGGGGGGGGGGGGGGGG")
+	handler := h.New(4, 10, 2, 0, 2, nil, false)
+	aln, err := NewAlignment(nseq, aseq, handler)
+	if aln != nil {
+		t.Errorf(MSG_NOT_EQUAL, nil, aln)
+	}
+	errExpect := errors.New("sequence misaligned")
+	if !reflect.DeepEqual(err, errExpect) {
+		t.Errorf(MSG_NOT_EQUAL, errExpect, err)
+	}
+}
+
 func TestGetReport(t *testing.T) {
 	nseq := n.ReadString("ACAGTRTTAGTAGGACCTACACCTAACATAATTGGAAGAAAAAATCTGTTGACYCA")
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	aln := NewAlignment(nseq, ASEQ, handler)
+	aln, _ := NewAlignment(nseq, ASEQ, handler)
 	result := aln.GetReport()
 	expect := &AlignmentReport{
 		FirstAA: 1,
@@ -205,9 +220,9 @@ func TestGetReport(t *testing.T) {
 }
 
 func TestPosInsCodonScore(t *testing.T) {
-	nseq := n.ReadString("ACAGTRTTAGTAGGACCTACACCTTTTTTTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
+	nseq := n.ReadString("ACAGTRTTAGTAGGACCTACACCTttttttGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
-	aln := NewAlignment(nseq, ASEQ, handler)
+	aln, _ := NewAlignment(nseq, ASEQ, handler)
 	result := aln.GetReport()
 	//           1  2  3  4  5  6  7  8        9 10 11 12 13 14 15 16 17 18 19
 	//         ACAGTRTTAGTAGGACCTACACCTttttttGCCAACATAATTGGAAGAAATCTGTTGACYCAG
@@ -222,7 +237,7 @@ func TestPosInsCodonScore(t *testing.T) {
 		11: -3,
 		12: -6,
 	}, true)
-	aln = NewAlignment(nseq, ASEQ, handler)
+	aln, _ = NewAlignment(nseq, ASEQ, handler)
 	result = aln.GetReport()
 	//          1  2  3  4  5  6  7  8  9 10       11 12 13 14 15 16 17 18 19
 	//        ACAGTRTTAGTAGGACCTACACCTttttttGCCAACATAATTGGAAGAAATCTGTTGACYCAG
@@ -230,8 +245,8 @@ func TestPosInsCodonScore(t *testing.T) {
 	if result.ControlLine != expect {
 		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
 	}
-	nseq = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACGGGATAATTGGAAGAAATCTGTTGACYCAG")
-	aln = NewAlignment(nseq, ASEQ, handler)
+	nseq = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACgggATAATTGGAAGAAATCTGTTGACYCAG")
+	aln, _ = NewAlignment(nseq, ASEQ, handler)
 	result = aln.GetReport()
 	//          1  2  3  4  5  6  7  8  9 10    11 12 13 14 15 16 17 18 19
 	//        ACAGTRTTAGTAGGACCTACACCTGCCAACgggATAATTGGAAGAAATCTGTTGACYCAG
@@ -240,7 +255,7 @@ func TestPosInsCodonScore(t *testing.T) {
 		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
 	}
 	nseq = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACATArrrATTGGAAGAAATCTGTTGACYCAG")
-	aln = NewAlignment(nseq, ASEQ, handler)
+	aln, _ = NewAlignment(nseq, ASEQ, handler)
 	result = aln.GetReport()
 	//          1  2  3  4  5  6  7  8  9 10    11 12 13 14 15 16 17 18 19
 	//        ACAGTRTTAGTAGGACCTACACCTGCCAACATArrrATTGGAAGAAATCTGTTGACYCAG
@@ -249,7 +264,7 @@ func TestPosInsCodonScore(t *testing.T) {
 		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
 	}
 	nseq = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACATAATTGrrrGAAGAAATCTGTTGACYCAG")
-	aln = NewAlignment(nseq, ASEQ, handler)
+	aln, _ = NewAlignment(nseq, ASEQ, handler)
 	result = aln.GetReport()
 	//          1  2  3  4  5  6  7  8  9 10 11 12 13    14 15 16 17 18 19
 	//        ACAGTRTTAGTAGGACCTACACCTGCCAACATAATTGrrrGAAGAAATCTGTTGACYCAG
@@ -258,7 +273,7 @@ func TestPosInsCodonScore(t *testing.T) {
 		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
 	}
 	nseq = n.ReadString("ACAGTRTTAGTAGGACCcccTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
-	aln = NewAlignment(nseq, ASEQ, handler)
+	aln, _ = NewAlignment(nseq, ASEQ, handler)
 	result = aln.GetReport()
 	//          1  2  3  4  5  6     7  8  9 10 11 12 13 14 15 16 17 18 19
 	//        ACAGTRTTAGTAGGACCcccTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG

@@ -1,6 +1,7 @@
 package alignment
 
 import (
+	"errors"
 	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
 	f "github.com/hivdb/nucamino/types/frameshift"
@@ -64,7 +65,7 @@ type Alignment struct {
 	report                        *AlignmentReport
 }
 
-func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler *h.GeneralScoreHandler) *Alignment {
+func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler *h.GeneralScoreHandler) (*Alignment, error) {
 	nSeqLen := len(nSeq)
 	aSeqLen := len(aSeq)
 	supportPositionalIndel := scoreHandler.IsPositionalIndelScoreSupported()
@@ -83,8 +84,11 @@ func NewAlignment(nSeq []n.NucleicAcid, aSeq []a.AminoAcid, scoreHandler *h.Gene
 		constIndelCodonOpeningScore:   constIndelCodonOpeningScore,
 		constIndelCodonExtensionScore: constIndelCodonExtensionScore,
 	}
-	result.align()
-	return result
+	ok := result.align()
+	if !ok {
+		return nil, errors.New("sequence misaligned")
+	}
+	return result, nil
 }
 
 func (self *Alignment) GetReport() *AlignmentReport {
@@ -270,6 +274,9 @@ func (self *Alignment) align() bool {
 	self.nSeqLen = len(self.nSeq)
 	self.aSeq = self.aSeq[:endPosA]
 	self.aSeqLen = len(self.aSeq)
+	if self.nSeqLen == 0 || self.aSeqLen == 0 {
+		return false
+	}
 	startPosN, startPosA, _ = self.calcScoreMainBackward()
 	self.nSeqOffset = startPosN - 1
 	self.aSeqOffset = startPosA - 1

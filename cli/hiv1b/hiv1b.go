@@ -49,6 +49,8 @@ var AllPositionalIndelScores = map[Gene]map[int]int{
 type tAlignmentResult struct {
 	Name   string
 	Report *alignment.AlignmentReport
+	Error  string
+	err    error
 }
 
 func writeTSV(
@@ -74,6 +76,11 @@ func writeTSV(
 		}
 		file.WriteString(seq.Name)
 		for i := 0; i < genesCount; i++ {
+			err := result[i].err
+			if err != nil {
+				file.WriteString("\tNA\tNA\tNA\tNA\tNA\tNA")
+				continue
+			}
 			r := result[i].Report
 			file.WriteString(fmt.Sprintf(
 				"\t%d\t%d\t%d\t%d\t%s\t%s",
@@ -224,10 +231,14 @@ func PerformAlignment(
 				isSimpleAlignment := true
 				result := make([]tAlignmentResult, genesCount)
 				for i := 0; i < genesCount; i++ {
-					aligned := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
-					r := aligned.GetReport()
-					result[i] = tAlignmentResult{seq.Name, r}
-					isSimpleAlignment = isSimpleAlignment && r.IsSimpleAlignment
+					aligned, err := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
+					if err != nil {
+						result[i] = tAlignmentResult{seq.Name, nil, err.Error(), err}
+					} else {
+						r := aligned.GetReport()
+						result[i] = tAlignmentResult{seq.Name, r, "", nil}
+						isSimpleAlignment = isSimpleAlignment && r.IsSimpleAlignment
+					}
 				}
 				rChan <- result
 				if !quiet {
