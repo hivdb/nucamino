@@ -7,6 +7,8 @@ NucAmino
 NucAmino is a nucleotide to amino acid alignment program optimized for virus
 gene sequences.
 
+The paper: https://www.ncbi.nlm.nih.gov/pubmed/28249562
+
 
 Compilation
 -----------
