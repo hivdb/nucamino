@@ -89,7 +89,7 @@ func TestNewAlignmentWithDelFs(t *testing.T) {
 		q: -1000, r: -200,
 		nSeq: NSEQ_DELFS, aSeq: ASEQ, nSeqLen: 55, aSeqLen: 19,
 		scoreHandler: handler, nwMatrix: []int{},
-		endPosN: 55, endPosA: 19, maxScore: 7000,
+		endPosN: 55, endPosA: 19, maxScore: 6500,
 		isSimpleAlignment:             false,
 		supportPositionalIndel:        false,
 		constIndelCodonOpeningScore:   0,
@@ -103,14 +103,14 @@ func TestNewAlignmentWithDelFs(t *testing.T) {
 }
 
 func TestNewAlignmentWithDel(t *testing.T) {
-	NSEQ_DEL := n.ReadString("ACAGTRTTAGTAGGACCTACACCTAACATAATTGGAAGAAATCTGTTGACYCA")
+	NSEQ_DEL := n.ReadString("ACAGTRTTAGTAGGACCTACACCT   AACATAATTGGAAGAAATCTGTTGACYCA")
 	handler := h.New(4, 10, 2, 0, 2, nil, false)
 	result, _ := NewAlignment(NSEQ_DEL, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
 		nSeq: NSEQ_DEL, aSeq: ASEQ, nSeqLen: 53, aSeqLen: 19,
 		scoreHandler: handler, nwMatrix: []int{},
-		endPosN: 53, endPosA: 19, maxScore: 7450,
+		endPosN: 53, endPosA: 19, maxScore: 7200,
 		isSimpleAlignment:             false,
 		supportPositionalIndel:        false,
 		constIndelCodonOpeningScore:   0,
