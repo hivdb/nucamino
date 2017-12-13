@@ -29,20 +29,22 @@ var GeneLookup = map[string]Gene{
 	"GP41": GP41,
 }
 
-var AllPositionalIndelScores = map[Gene]map[int]int{
-	POL: map[int]int{
+var AllPositionalIndelScores = map[Gene]map[int][2]int{
+	POL: map[int][2]int{
 		// 56prePR + 99PR = 155
-		155 + 63: -3,
-		155 + 64: -3,
-		155 + 65: -9,
-		155 + 66: -9,
-		155 + 67: -9,
-		155 + 68: -3,
-		155 + 69: 6, // group all insertions to RT69/POL224
-		155 + 70: -3,
-		155 + 71: -3,
-		155 + 72: -3,
-		155 + 73: -3,
+		155 + 63:  [2]int{-5, 0},
+		-155 - 63: [2]int{-5, 0},
+		155 + 64:  [2]int{-5, 0},
+		-155 - 64: [2]int{-5, 0},
+		155 + 65:  [2]int{-7, 0},
+		155 + 66:  [2]int{-7, 0},
+		155 + 67:  [2]int{-7, 0},
+		155 + 68:  [2]int{-3, 0},
+		155 + 69:  [2]int{18, -3}, // group all insertions to RT69/POL224
+		155 + 70:  [2]int{-3, 0},
+		155 + 71:  [2]int{-3, 0},
+		155 + 72:  [2]int{-3, 0},
+		155 + 73:  [2]int{-3, 0},
 	},
 }
 

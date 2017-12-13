@@ -5,6 +5,7 @@ import (
 	a "github.com/hivdb/nucamino/types/amino"
 	c "github.com/hivdb/nucamino/types/codon"
 	n "github.com/hivdb/nucamino/types/nucleic"
+	"strings"
 )
 
 type Mutation struct {
@@ -133,12 +134,17 @@ func MakeMutation(
 	} else if lenNAs > 0 {
 		// codon missed 1 or 2 NAs
 		codon := c.FindBestMatch(nas, ref)
+		allNs := true
 		for _, na := range codon.GetNucleicAcids() {
 			if na == n.N {
 				control += "-"
 			} else {
+				allNs = false
 				control += "."
 			}
+		}
+		if allNs {
+			control = strings.Repeat(".", lenNAs) + "-"
 		}
 		mutation = New(position, naPosition, codon, ref, true, control)
 	} else if lenNAs == 0 {

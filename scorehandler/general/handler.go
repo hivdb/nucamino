@@ -30,7 +30,7 @@ type GeneralScoreHandler struct {
 	gapExtensionPenalty              int
 	indelCodonOpeningBonus           int
 	indelCodonExtensionBonus         int
-	positionalIndelScores            map[int]int
+	positionalIndelScores            map[int][2]int
 	positionalIndelScoresBloomFilter int64
 	isPositionalIndelScoreSupported  bool
 	scoreMatrix                      *[a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int
@@ -115,6 +115,7 @@ func (self *GeneralScoreHandler) GetConstantIndelCodonScore() (int, int) {
 
 func (self *GeneralScoreHandler) GetPositionalIndelCodonScore(position int, isInsertion bool) (int, int) {
 	score := self.indelCodonOpeningBonus
+	ext := self.indelCodonExtensionBonus
 	if self.isPositionalIndelScoreSupported {
 		sign := -1 // deletion
 		if isInsertion {
@@ -126,11 +127,12 @@ func (self *GeneralScoreHandler) GetPositionalIndelCodonScore(position int, isIn
 			// the bloom filter removed most negatives; now search the real map
 			_score, ok := self.positionalIndelScores[key]
 			if ok {
-				score = _score
+				score = _score[0]
+				ext = _score[1]
 			}
 		}
 	}
-	return score, self.indelCodonExtensionBonus
+	return score, ext
 }
 
 func New(
@@ -139,7 +141,7 @@ func New(
 	gapExtensionPenalty int,
 	indelCodonOpeningBonus int,
 	indelCodonExtensionBonus int,
-	positionalIndelScores map[int]int,
+	positionalIndelScores map[int][2]int,
 	isPositionalIndelScoreSupported bool) *GeneralScoreHandler {
 	scoreScale := 100
 	scoreMatrix := [a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int{}
@@ -153,11 +155,11 @@ func New(
 		}
 	}
 	var positionalIndelScoresBloomFilter int64 = 0
-	scaledPositionalIndelScores := map[int]int{}
+	scaledPositionalIndelScores := map[int][2]int{}
 	for key, score := range positionalIndelScores {
 		// create a tiny bloom filter to prune negatives
 		positionalIndelScoresBloomFilter |= simpleFNV1a(key)
-		scaledPositionalIndelScores[key] = score * scoreScale
+		scaledPositionalIndelScores[key] = [2]int{score[0] * scoreScale, score[1] * scoreScale}
 	}
 	return &GeneralScoreHandler{
 		scoreScale:                       scoreScale,
