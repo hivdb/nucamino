@@ -230,12 +230,12 @@ func TestPosInsCodonScore(t *testing.T) {
 	if result.ControlLine != expect {
 		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
 	}
-	handler = h.New(4, 10, 2, 0, 2, map[int]int{
-		8:  -6,
-		9:  -3,
-		10: 6,
-		11: -3,
-		12: -6,
+	handler = h.New(4, 10, 2, 0, 2, map[int][2]int{
+		8:  [2]int{-6, 0},
+		9:  [2]int{-3, 0},
+		10: [2]int{6, 0},
+		11: [2]int{-3, 0},
+		12: [2]int{-6, 0},
 	}, true)
 	aln, _ = NewAlignment(nseq, ASEQ, handler)
 	result = aln.GetReport()
