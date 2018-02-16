@@ -1,10 +1,9 @@
-package cli
+package hiv1b
 
 import (
-	"bytes"
-	json "encoding/json"
 	"fmt"
 	"github.com/hivdb/nucamino/alignment"
+	cli "github.com/hivdb/nucamino/cli/cli"
 	d "github.com/hivdb/nucamino/data"
 	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
@@ -15,22 +14,8 @@ import (
 	"sync"
 )
 
-type Gene uint8
-
-const (
-	GAG Gene = iota
-	POL
-	GP41
-)
-
-var GeneLookup = map[string]Gene{
-	"GAG":  GAG,
-	"POL":  POL,
-	"GP41": GP41,
-}
-
-var AllPositionalIndelScores = map[Gene]map[int][2]int{
-	GAG: map[int][2]int{
+var AllPositionalIndelScores = map[cli.Gene]map[int][2]int{
+	cli.GAG: map[int][2]int{
 		111: [2]int{-5, 0},
 		112: [2]int{-5, 0},
 		113: [2]int{11, 0},
@@ -177,7 +162,7 @@ var AllPositionalIndelScores = map[Gene]map[int][2]int{
 		492: [2]int{-2, -2},
 		493: [2]int{-2, -2},
 	},
-	POL: map[int][2]int{
+	cli.POL: map[int][2]int{
 		// 56prePR + 99PR = 155
 		155 + 63:  [2]int{-5, 0},
 		-155 - 63: [2]int{-5, 0},
@@ -195,108 +180,6 @@ var AllPositionalIndelScores = map[Gene]map[int][2]int{
 	},
 }
 
-type tAlignmentResult struct {
-	Name   string
-	Report *alignment.AlignmentReport
-	Error  string
-	err    error
-}
-
-func writeTSV(
-	file *os.File, textGenes []string,
-	seqs []fastareader.Sequence, resultMap map[string][]tAlignmentResult) {
-
-	genesCount := len(textGenes)
-	file.WriteString("Sequence Name")
-	for _, textGene := range textGenes {
-		file.WriteString("\t" + textGene + " FirstAA")
-		file.WriteString("\t" + textGene + " LastAA")
-		file.WriteString("\t" + textGene + " FirstNA")
-		file.WriteString("\t" + textGene + " LastNA")
-		file.WriteString("\t" + textGene + " Mutations")
-		file.WriteString("\t" + textGene + " FrameShifts")
-	}
-	file.WriteString("\n")
-
-	for _, seq := range seqs {
-		result := resultMap[seq.Name]
-		if result == nil {
-			continue
-		}
-		file.WriteString(seq.Name)
-		for i := 0; i < genesCount; i++ {
-			err := result[i].err
-			if err != nil {
-				file.WriteString("\tNA\tNA\tNA\tNA\tNA\tNA")
-				continue
-			}
-			r := result[i].Report
-			file.WriteString(fmt.Sprintf(
-				"\t%d\t%d\t%d\t%d\t%s\t%s",
-				r.FirstAA, r.LastAA,
-				r.FirstNA, r.LastNA,
-				func() string {
-					var muts bytes.Buffer
-					for _, mut := range r.Mutations {
-						muts.WriteString(mut.ToString())
-						muts.WriteString(",")
-					}
-					if muts.Len() > 0 {
-						muts.Truncate(muts.Len() - 1)
-					}
-					return muts.String()
-				}(),
-				func() string {
-					var fss bytes.Buffer
-					for _, fs := range r.FrameShifts {
-						fss.WriteString(fs.ToString())
-						fss.WriteString(",")
-					}
-					if fss.Len() > 0 {
-						fss.Truncate(fss.Len() - 1)
-					}
-					return fss.String()
-				}(),
-			))
-		}
-		file.WriteString("\n")
-	}
-}
-
-func writeJSON(
-	file *os.File, textGenes []string,
-	seqs []fastareader.Sequence, resultMap map[string][]tAlignmentResult) {
-
-	finalResultMap := make(map[string][]tAlignmentResult)
-	genesCount := len(textGenes)
-
-	for i := 0; i < genesCount; i++ {
-		textGene := textGenes[i]
-		for _, seq := range seqs {
-			seqResult := resultMap[seq.Name]
-			if seqResult != nil {
-				seqGeneResult := seqResult[i]
-				finalResultMap[textGene] = append(finalResultMap[textGene], seqGeneResult)
-			}
-		}
-	}
-	result, err := json.MarshalIndent(finalResultMap, "", "  ")
-	if err != nil {
-		log.Fatal(err)
-	}
-	file.Write(result)
-}
-
-func seqSlice2Chan(s []fastareader.Sequence, bufferSize int) chan fastareader.Sequence {
-	c := make(chan fastareader.Sequence, bufferSize)
-	go func() {
-		for _, item := range s {
-			c <- item
-		}
-		close(c)
-	}()
-	return c
-}
 
 func PerformAlignment(
 	inputFileName string,
@@ -344,26 +227,26 @@ func PerformAlignment(
 	}
 
 	genesCount := len(textGenes)
-	genes := make([]Gene, genesCount)
+	genes := make([]cli.Gene, genesCount)
 	refs := make([][]a.AminoAcid, genesCount)
 	for i, textGene := range textGenes {
-		genes[i] = GeneLookup[textGene]
+		genes[i] = cli.GeneLookup[textGene]
 		refs[i] = d.HIV1BRefLookup[textGene]
 	}
 
 	var (
 		wg         = sync.WaitGroup{}
 		seqs       = fastareader.ReadSequences(input)
-		resultChan = make(chan []tAlignmentResult)
-		resultMap  = make(map[string][]tAlignmentResult)
+		resultChan = make(chan []cli.AlignmentResult)
+		resultMap  = make(map[string][]cli.AlignmentResult)
 	)
 	if !quiet {
 		logger.Printf("%d sequences were found from the input file.\n", len(seqs))
 	}
-	var seqChan = seqSlice2Chan(seqs, goroutines*4)
+	var seqChan = cli.SeqSlice2Chan(seqs, goroutines*4)
 	for i := 0; i < goroutines; i++ {
 		wg.Add(1)
-		go func(idx int, rChan chan<- []tAlignmentResult) {
+		go func(idx int, rChan chan<- []cli.AlignmentResult) {
 			scoreHandlers := make([]*h.GeneralScoreHandler, genesCount)
 			for i, gene := range genes {
 				positionalIndelScores, isPositionalIndelScoreSupported := AllPositionalIndelScores[gene]
@@ -378,14 +261,14 @@ func PerformAlignment(
 			}
 			for seq := range seqChan {
 				isSimpleAlignment := true
-				result := make([]tAlignmentResult, genesCount)
+				result := make([]cli.AlignmentResult, genesCount)
 				for i := 0; i < genesCount; i++ {
 					aligned, err := alignment.NewAlignment(seq.Sequence, refs[i], scoreHandlers[i])
 					if err != nil {
-						result[i] = tAlignmentResult{seq.Name, nil, err.Error(), err}
+						result[i] = cli.AlignmentResult{seq.Name, nil, err.Error(), err}
 					} else {
 						r := aligned.GetReport()
-						result[i] = tAlignmentResult{seq.Name, r, "", nil}
+						result[i] = cli.AlignmentResult{seq.Name, r, "", nil}
 						isSimpleAlignment = isSimpleAlignment && r.IsSimpleAlignment
 					}
 				}
@@ -401,7 +284,7 @@ func PerformAlignment(
 			wg.Done()
 		}(i, resultChan)
 	}
-	go func(rChan chan<- []tAlignmentResult) {
+	go func(rChan chan<- []cli.AlignmentResult) {
 		wg.Wait()
 		if !quiet {
 			logger.Printf("\n")
@@ -413,10 +296,10 @@ func PerformAlignment(
 	}
 	switch outputFormat {
 	case "tsv":
-		writeTSV(output, textGenes, seqs, resultMap)
+		cli.WriteTSV(output, textGenes, seqs, resultMap)
 		break
 	case "json":
-		writeJSON(output, textGenes, seqs, resultMap)
+		cli.WriteJSON(output, textGenes, seqs, resultMap)
 		break
 	}
 	if !quiet && outputFileName != "-" {
