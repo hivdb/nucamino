@@ -61,7 +61,16 @@ nucamino --help
 nucamino hiv1b --help
 ```
 
+Donation
+--------
+
+If you find NucAmino useful and wish to donate to the HIVDB team, you can do
+so through [Stanford Make a Gift][donation] form. Your contribution will be
+greatly appreciated.
+
+
 [golang]: https://golang.org/
 [docker]: https://www.docker.com/
 [mingw]: http://www.mingw.org/
 [latest]: https://github.com/hivdb/NucAmino/releases/tag/v0.1.3
+[donation]: https://giving.stanford.edu/goto/shafergift
