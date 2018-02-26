@@ -180,13 +180,14 @@ var AllPositionalIndelScores = map[Gene]map[int][2]int{
 	POL: map[int][2]int{
 		// 56prePR + 99PR = 155
 		155 + 63:  [2]int{-5, 0},
-		-155 - 63: [2]int{-5, 0},
+		-155 - 63: [2]int{-5, 0}, // deletion penalty to the far end of RT69
 		155 + 64:  [2]int{-5, 0},
-		-155 - 64: [2]int{-5, 0},
+		-155 - 64: [2]int{-5, 0}, // deletion penalty to the far end of RT69
 		155 + 65:  [2]int{-7, 0},
 		155 + 66:  [2]int{-7, 0},
 		155 + 67:  [2]int{-7, 0},
 		155 + 68:  [2]int{-3, 0},
+		-155 - 68: [2]int{0, 0},   // remove deletion bonus from RT68/POL223
 		155 + 69:  [2]int{18, -3}, // group all insertions to RT69/POL224
 		155 + 70:  [2]int{-3, 0},
 		155 + 71:  [2]int{-3, 0},
