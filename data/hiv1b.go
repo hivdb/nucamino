@@ -39,7 +39,7 @@ var (
 	`) // 345 AAs
 )
 
-var HIV1BRefLookup = map[string][]a.AminoAcid{
+var HIV1BRefLookup = SequenceMap{
 	"GAG":  HIV1BSEQ_GAG,
 	"POL":  HIV1BSEQ_POL,
 	"GP41": HIV1BSEQ_GP41,

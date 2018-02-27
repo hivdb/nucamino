@@ -1,6 +1,7 @@
 package main
 
 import (
+	cli "github.com/hivdb/nucamino/cli/cli"
 	hiv1bcli "github.com/hivdb/nucamino/cli/hiv1b"
 	"github.com/pkg/profile"
 )
@@ -25,12 +26,24 @@ func (self *HIV1BOptions) Execute(args []string) error {
 	if self.Pprof.Pprof {
 		defer profile.Start(profile.CPUProfile).Stop()
 	}
-	hiv1bcli.PerformAlignment(
-		string(self.Files.Input), string(self.Files.Output), self.Genes,
-		self.IndelCodonOpeningBonus, self.IndelCodonExtensionBonus,
-		self.StopCodonPenalty, self.GapOpeningPenalty,
-		self.GapExtensionPenalty, self.Goroutines,
-		self.OutputFormat, self.Quiet)
+
+	ioParams := cli.IOParameters{
+		InputFileName:  string(self.Files.Input),
+		OutputFileName: string(self.Files.Output),
+		OutputFormat:   self.OutputFormat,
+	}
+
+	alignmentParams := cli.AlignmentParameters{
+		IndelCodonOpeningBonus:   self.IndelCodonOpeningBonus,
+		IndelCodonExtensionBonus: self.IndelCodonExtensionBonus,
+		StopCodonPenalty:         self.StopCodonPenalty,
+		GapOpeningPenalty:        self.GapOpeningPenalty,
+		GapExtensionPenalty:      self.GapExtensionPenalty,
+	}
+
+	hiv1bcli.PerformAlignment(ioParams, self.Genes, self.Goroutines,
+		self.Quiet, alignmentParams)
+
 	return nil
 }
 
