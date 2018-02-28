@@ -1,7 +1,7 @@
 package hiv1b
 
 import (
-	cli "github.com/hivdb/nucamino/cli/cli"
+	cli "github.com/hivdb/nucamino/cli"
 	data "github.com/hivdb/nucamino/data"
 )
 

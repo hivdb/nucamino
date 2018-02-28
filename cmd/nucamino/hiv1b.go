@@ -1,7 +1,7 @@
 package main
 
 import (
-	cli "github.com/hivdb/nucamino/cli/cli"
+	cli "github.com/hivdb/nucamino/cli"
 	hiv1bcli "github.com/hivdb/nucamino/cli/hiv1b"
 	"github.com/pkg/profile"
 )
