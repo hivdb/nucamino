@@ -50,6 +50,6 @@ func (self *HCV1AOptions) Execute(args []string) error {
 func init() {
 	parser.AddCommand(
 		"hcv1a", "Align HCV-1 genotype A sequences",
-		"Align input sequences to HCV-1 genotype B using the FDA recommended reference (Genebank accession no. NC_004102). Suported genes: NS3, NS5A, NS5B.",
+		"Align input sequences to HCV-1 genotype B using the FDA recommended reference (Genebank accession no. NC_004102). Supported genes: NS3, NS5A, NS5B.",
 		&hcv1aOptions)
 }
