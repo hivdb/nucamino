@@ -135,14 +135,18 @@ func (self *GeneralScoreHandler) GetPositionalIndelCodonScore(position int, isIn
 	return score, ext
 }
 
-func New(
-	stopCodonPenalty int,
-	gapOpenPenalty int,
-	gapExtensionPenalty int,
-	indelCodonOpeningBonus int,
-	indelCodonExtensionBonus int,
-	positionalIndelScores map[int][2]int,
-	isPositionalIndelScoreSupported bool) *GeneralScoreHandler {
+type GeneralScoreHandlerParams struct {
+	StopCodonPenalty              int
+	GapOpenPenalty                int
+	GapExtensionPenalty           int
+	IndelCodonOpeningBonus        int
+	IndelCodonExtensionBonus      int
+	PositionalIndelScores         map[int][2]int
+	SupportsPositionalIndelScores bool
+}
+
+func New(params GeneralScoreHandlerParams) *GeneralScoreHandler {
+
 	scoreScale := 100
 	scoreMatrix := [a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int{}
 	for i, matrix3d := range scoreMatrix {
@@ -156,21 +160,21 @@ func New(
 	}
 	var positionalIndelScoresBloomFilter int64 = 0
 	scaledPositionalIndelScores := map[int][2]int{}
-	for key, score := range positionalIndelScores {
+	for key, score := range params.PositionalIndelScores {
 		// create a tiny bloom filter to prune negatives
 		positionalIndelScoresBloomFilter |= simpleFNV1a(key)
 		scaledPositionalIndelScores[key] = [2]int{score[0] * scoreScale, score[1] * scoreScale}
 	}
 	return &GeneralScoreHandler{
 		scoreScale:                       scoreScale,
-		stopCodonPenalty:                 stopCodonPenalty * scoreScale,
-		gapOpenPenalty:                   gapOpenPenalty * scoreScale,
-		gapExtensionPenalty:              gapExtensionPenalty * scoreScale,
-		indelCodonOpeningBonus:           indelCodonOpeningBonus * scoreScale,
-		indelCodonExtensionBonus:         indelCodonExtensionBonus * scoreScale,
+		stopCodonPenalty:                 params.StopCodonPenalty * scoreScale,
+		gapOpenPenalty:                   params.GapOpenPenalty * scoreScale,
+		gapExtensionPenalty:              params.GapExtensionPenalty * scoreScale,
+		indelCodonOpeningBonus:           params.IndelCodonOpeningBonus * scoreScale,
+		indelCodonExtensionBonus:         params.IndelCodonExtensionBonus * scoreScale,
 		positionalIndelScores:            scaledPositionalIndelScores,
 		positionalIndelScoresBloomFilter: positionalIndelScoresBloomFilter,
-		isPositionalIndelScoreSupported:  isPositionalIndelScoreSupported,
+		isPositionalIndelScoreSupported:  params.SupportsPositionalIndelScores,
 		scoreMatrix:                      &scoreMatrix,
 	}
 }

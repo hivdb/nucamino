@@ -147,6 +147,19 @@ type AlignmentParameters struct {
 	GapExtensionPenalty      int
 }
 
+func (self AlignmentParameters) MakeScoreHandlerParams(
+	positionalIndelScores map[int][2]int) h.GeneralScoreHandlerParams {
+	return h.GeneralScoreHandlerParams{
+		StopCodonPenalty:              self.StopCodonPenalty,
+		GapOpenPenalty:                self.GapOpeningPenalty,
+		GapExtensionPenalty:           self.GapExtensionPenalty,
+		IndelCodonOpeningBonus:        self.IndelCodonOpeningBonus,
+		IndelCodonExtensionBonus:      self.IndelCodonExtensionBonus,
+		PositionalIndelScores:         positionalIndelScores,
+		SupportsPositionalIndelScores: (positionalIndelScores != nil),
+	}
+}
+
 type PositionalIndelScores map[Gene]map[int]([2]int)
 
 func PerformAlignment(
@@ -220,15 +233,10 @@ func PerformAlignment(
 		go func(idx int, rChan chan<- []AlignmentResult) {
 			scoreHandlers := make([]*h.GeneralScoreHandler, genesCount)
 			for i, gene := range genes {
-				positionalIndelScores, isPositionalIndelScoreSupported := positionalIndelScores[gene]
+				positionalIndelScores, _ := positionalIndelScores[gene]
 				scoreHandlers[i] = h.New(
-					alignmentParams.StopCodonPenalty,
-					alignmentParams.GapOpeningPenalty,
-					alignmentParams.GapExtensionPenalty,
-					alignmentParams.IndelCodonOpeningBonus,
-					alignmentParams.IndelCodonExtensionBonus,
-					positionalIndelScores,
-					isPositionalIndelScoreSupported)
+					alignmentParams.MakeScoreHandlerParams(positionalIndelScores),
+				)
 			}
 			for seq := range seqChan {
 				isSimpleAlignment := true
