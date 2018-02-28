@@ -1,11 +1,12 @@
 package hcv1a
 
 import (
+	"github.com/hivdb/nucamino/alignment"
 	cli "github.com/hivdb/nucamino/cli"
 	data "github.com/hivdb/nucamino/data"
 )
 
-var hcv1aPositionalIndelScores = cli.PositionalIndelScores{}
+var hcv1aPositionalIndelScores = alignment.PositionalIndelScores{}
 
 func PerformAlignment(
 	ioParams cli.IOParameters,

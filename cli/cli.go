@@ -15,21 +15,6 @@ import (
 	"sync"
 )
 
-type Gene uint8
-
-const (
-	// hiv1b genes
-	GAG Gene = iota
-	POL
-	GP41
-)
-
-var GeneLookup = map[string]Gene{
-	"GAG":  GAG,
-	"POL":  POL,
-	"GP41": GP41,
-}
-
 type AlignmentResult struct {
 	Name   string
 	Report *alignment.AlignmentReport
@@ -160,8 +145,6 @@ func (self AlignmentParameters) MakeScoreHandlerParams(
 	}
 }
 
-type PositionalIndelScores map[Gene]map[int]([2]int)
-
 func PerformAlignment(
 	inputFileName string,
 	outputFileName string,
@@ -170,7 +153,7 @@ func PerformAlignment(
 	goroutines int,
 	quiet bool,
 	alignmentParams AlignmentParameters,
-	positionalIndelScores PositionalIndelScores,
+	positionalIndelScores alignment.PositionalIndelScores,
 	referenceSequences d.SequenceMap) {
 
 	// Configure runtime
@@ -210,10 +193,10 @@ func PerformAlignment(
 	}
 
 	genesCount := len(textGenes)
-	genes := make([]Gene, genesCount)
+	genes := make([]alignment.Gene, genesCount)
 	refs := make([][]a.AminoAcid, genesCount)
 	for i, textGene := range textGenes {
-		genes[i] = GeneLookup[textGene]
+		genes[i] = alignment.Gene(textGene)
 		refs[i] = referenceSequences[textGene]
 	}
 

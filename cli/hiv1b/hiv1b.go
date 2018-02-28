@@ -1,12 +1,13 @@
 package hiv1b
 
 import (
+	"github.com/hivdb/nucamino/alignment"
 	cli "github.com/hivdb/nucamino/cli"
 	data "github.com/hivdb/nucamino/data"
 )
 
-var hiv1bPositionalIndelScores = cli.PositionalIndelScores{
-	cli.GAG: map[int][2]int{
+var hiv1bPositionalIndelScores = alignment.PositionalIndelScores{
+	"GAG": map[int][2]int{
 		111: [2]int{-5, 0},
 		112: [2]int{-5, 0},
 		113: [2]int{11, 0},
@@ -153,7 +154,7 @@ var hiv1bPositionalIndelScores = cli.PositionalIndelScores{
 		492: [2]int{-2, -2},
 		493: [2]int{-2, -2},
 	},
-	cli.POL: map[int][2]int{
+	"POL": map[int][2]int{
 		// 56prePR + 99PR = 155
 		155 + 63:  [2]int{-5, 0},
 		-155 - 63: [2]int{-5, 0}, // deletion penalty to the far end of RT69
