@@ -1,6 +1,7 @@
 package general
 
 import (
+	ap "github.com/hivdb/nucamino/alignmentprofile"
 	d "github.com/hivdb/nucamino/data"
 	a "github.com/hivdb/nucamino/types/amino"
 	c "github.com/hivdb/nucamino/types/codon"
@@ -137,7 +138,7 @@ func (self *GeneralScoreHandler) GetPositionalIndelCodonScore(position int, isIn
 
 type GeneralScoreHandlerParams struct {
 	StopCodonPenalty              int
-	GapOpenPenalty                int
+	GapOpeningPenalty             int
 	GapExtensionPenalty           int
 	IndelCodonOpeningBonus        int
 	IndelCodonExtensionBonus      int
@@ -145,8 +146,7 @@ type GeneralScoreHandlerParams struct {
 	SupportsPositionalIndelScores bool
 }
 
-func New(params GeneralScoreHandlerParams) *GeneralScoreHandler {
-
+func New(gene ap.Gene, profile ap.AlignmentProfile) *GeneralScoreHandler {
 	scoreScale := 100
 	scoreMatrix := [a.NumAminoAcids][n.NumNucleicAcids][n.NumNucleicAcids][n.NumNucleicAcids]int{}
 	for i, matrix3d := range scoreMatrix {
@@ -160,21 +160,22 @@ func New(params GeneralScoreHandlerParams) *GeneralScoreHandler {
 	}
 	var positionalIndelScoresBloomFilter int64 = 0
 	scaledPositionalIndelScores := map[int][2]int{}
-	for key, score := range params.PositionalIndelScores {
+	indelScores, supported := profile.PositionalIndelScoresFor(gene)
+	for key, score := range indelScores {
 		// create a tiny bloom filter to prune negatives
 		positionalIndelScoresBloomFilter |= simpleFNV1a(key)
 		scaledPositionalIndelScores[key] = [2]int{score[0] * scoreScale, score[1] * scoreScale}
 	}
 	return &GeneralScoreHandler{
 		scoreScale:                       scoreScale,
-		stopCodonPenalty:                 params.StopCodonPenalty * scoreScale,
-		gapOpenPenalty:                   params.GapOpenPenalty * scoreScale,
-		gapExtensionPenalty:              params.GapExtensionPenalty * scoreScale,
-		indelCodonOpeningBonus:           params.IndelCodonOpeningBonus * scoreScale,
-		indelCodonExtensionBonus:         params.IndelCodonExtensionBonus * scoreScale,
+		stopCodonPenalty:                 profile.StopCodonPenalty * scoreScale,
+		gapOpenPenalty:                   profile.GapOpeningPenalty * scoreScale,
+		gapExtensionPenalty:              profile.GapExtensionPenalty * scoreScale,
+		indelCodonOpeningBonus:           profile.IndelCodonOpeningBonus * scoreScale,
+		indelCodonExtensionBonus:         profile.IndelCodonExtensionBonus * scoreScale,
 		positionalIndelScores:            scaledPositionalIndelScores,
 		positionalIndelScoresBloomFilter: positionalIndelScoresBloomFilter,
-		isPositionalIndelScoreSupported:  params.SupportsPositionalIndelScores,
+		isPositionalIndelScoreSupported:  supported,
 		scoreMatrix:                      &scoreMatrix,
 	}
 }

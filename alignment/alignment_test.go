@@ -2,6 +2,7 @@ package alignment
 
 import (
 	"errors"
+	ap "github.com/hivdb/nucamino/alignmentprofile"
 	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
 	f "github.com/hivdb/nucamino/types/frameshift"
@@ -16,21 +17,21 @@ const (
 )
 
 var (
-	NSEQ                 = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
-	ASEQ                 = a.ReadString("TVLVGPTPVNIIGRNLLTQ")
-	BASIC_HANDLER_PARAMS = h.GeneralScoreHandlerParams{
-		StopCodonPenalty:              4,
-		GapOpenPenalty:                10,
-		GapExtensionPenalty:           2,
-		IndelCodonOpeningBonus:        0,
-		IndelCodonExtensionBonus:      2,
-		PositionalIndelScores:         nil,
-		SupportsPositionalIndelScores: false,
+	NSEQ                      = n.ReadString("ACAGTRTTAGTAGGACCTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
+	ASEQ                      = a.ReadString("TVLVGPTPVNIIGRNLLTQ")
+	EXAMPLE_ALIGNMENT_PROFILE = ap.AlignmentProfile{
+		StopCodonPenalty:         4,
+		GapOpeningPenalty:        10,
+		GapExtensionPenalty:      2,
+		IndelCodonOpeningBonus:   0,
+		IndelCodonExtensionBonus: 2,
+		GeneIndelScores:          nil,
+		ReferenceSequences:       ap.ReferenceSeqs{"A": ASEQ},
 	}
 )
 
 func TestNewAlignment(t *testing.T) {
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	result, _ := NewAlignment(NSEQ, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
@@ -50,7 +51,7 @@ func TestNewAlignment(t *testing.T) {
 
 func TestNewAlignmentWithIns(t *testing.T) {
 	NSEQ_INS := n.ReadString("ACAGTRTTAGTAGGACCTTTTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	result, _ := NewAlignment(NSEQ_INS, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
@@ -71,7 +72,7 @@ func TestNewAlignmentWithIns(t *testing.T) {
 
 func TestNewAlignmentWithInsFs(t *testing.T) {
 	NSEQ_INSFS := n.ReadString("ACAGTRTTAGTAGGACCTTTACACCTGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	result, _ := NewAlignment(NSEQ_INSFS, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
@@ -92,7 +93,7 @@ func TestNewAlignmentWithInsFs(t *testing.T) {
 
 func TestNewAlignmentWithDelFs(t *testing.T) {
 	NSEQ_DELFS := n.ReadString("AAGTRTTAGTAGGACCTACACCTGCCAACATAATTGGAGAAATCTGTTGACYCAG")
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	result, _ := NewAlignment(NSEQ_DELFS, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
@@ -113,7 +114,7 @@ func TestNewAlignmentWithDelFs(t *testing.T) {
 
 func TestNewAlignmentWithDel(t *testing.T) {
 	NSEQ_DEL := n.ReadString("ACAGTRTTAGTAGGACCTACACCT   AACATAATTGGAAGAAATCTGTTGACYCA")
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	result, _ := NewAlignment(NSEQ_DEL, ASEQ, handler)
 	expect := &Alignment{
 		q: -1000, r: -200,
@@ -133,7 +134,7 @@ func TestNewAlignmentWithDel(t *testing.T) {
 }
 
 func TestGetMatrixIndex(t *testing.T) {
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	aln, _ := NewAlignment(NSEQ, ASEQ, handler)
 	result := aln.getMatrixIndex(INS, 14, 5)
 	expect := 1445
@@ -153,7 +154,7 @@ func TestGetMatrixIndex(t *testing.T) {
 }
 
 func TestGetTypedPos(t *testing.T) {
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	aln, _ := NewAlignment(NSEQ, ASEQ, handler)
 	st, pn, pa := aln.getTypedPos(1445)
 	if st != INS || pn != 14 || pa != 5 {
@@ -172,7 +173,7 @@ func TestGetTypedPos(t *testing.T) {
 func TestMisaligned(t *testing.T) {
 	nseq := n.ReadString("AAAAAAAAAAAAAAAAAA")
 	aseq := a.ReadString("GGGGGGGGGGGGGGGGGG")
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	aln, err := NewAlignment(nseq, aseq, handler)
 	if aln != nil {
 		t.Errorf(MSG_NOT_EQUAL, nil, aln)
@@ -185,7 +186,7 @@ func TestMisaligned(t *testing.T) {
 
 func TestGetReport(t *testing.T) {
 	nseq := n.ReadString("ACAGTRTTAGTAGGACCTACACCTAACATAATTGGAAGAAAAAATCTGTTGACYCA")
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	aln, _ := NewAlignment(nseq, ASEQ, handler)
 	result := aln.GetReport()
 	expect := &AlignmentReport{
@@ -230,7 +231,7 @@ func TestGetReport(t *testing.T) {
 
 func TestPosInsCodonScore(t *testing.T) {
 	nseq := n.ReadString("ACAGTRTTAGTAGGACCTACACCTttttttGCCAACATAATTGGAAGAAATCTGTTGACYCAG")
-	handler := h.New(BASIC_HANDLER_PARAMS)
+	handler := h.New(ap.Gene("A"), EXAMPLE_ALIGNMENT_PROFILE)
 	aln, _ := NewAlignment(nseq, ASEQ, handler)
 	result := aln.GetReport()
 	//           1  2  3  4  5  6  7  8        9 10 11 12 13 14 15 16 17 18 19
@@ -239,21 +240,24 @@ func TestPosInsCodonScore(t *testing.T) {
 	if result.ControlLine != expect {
 		t.Errorf(MSG_NOT_EQUAL, expect, result.ControlLine)
 	}
-	handler = h.New(h.GeneralScoreHandlerParams{
-		StopCodonPenalty:         4,
-		GapOpenPenalty:           10,
-		GapExtensionPenalty:      2,
-		IndelCodonOpeningBonus:   0,
-		IndelCodonExtensionBonus: 2,
-		PositionalIndelScores: map[int][2]int{
-			8:  [2]int{-6, 0},
-			9:  [2]int{-3, 0},
-			10: [2]int{6, 0},
-			11: [2]int{-3, 0},
-			12: [2]int{-6, 0},
-		},
-		SupportsPositionalIndelScores: true,
-	})
+	handler = h.New(
+		"A",
+		ap.AlignmentProfile{
+			StopCodonPenalty:         4,
+			GapOpeningPenalty:        10,
+			GapExtensionPenalty:      2,
+			IndelCodonOpeningBonus:   0,
+			IndelCodonExtensionBonus: 2,
+			GeneIndelScores: ap.GenePositionalIndelScores{
+				"A": ap.PositionalIndelScores{
+					8:  [2]int{-6, 0},
+					9:  [2]int{-3, 0},
+					10: [2]int{6, 0},
+					11: [2]int{-3, 0},
+					12: [2]int{-6, 0},
+				},
+			},
+		})
 	aln, _ = NewAlignment(nseq, ASEQ, handler)
 	result = aln.GetReport()
 	//          1  2  3  4  5  6  7  8  9 10       11 12 13 14 15 16 17 18 19
