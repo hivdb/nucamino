@@ -1,4 +1,4 @@
-package alignment
+package alignmentprofile
 
 import (
 	a "github.com/hivdb/nucamino/types/amino"
@@ -6,19 +6,19 @@ import (
 )
 
 var exampleProfile = AlignmentProfile{
-	ReferenceSequences: map[Gene][]a.AminoAcid{
+	ReferenceSequences: ReferenceSeqs{
 		"A": a.ReadString("T"),
 		"B": a.ReadString("V"),
 	},
 }
 
 var exampleProfileWithPositionalIndelScores = AlignmentProfile{
-	ReferenceSequences: map[Gene][]a.AminoAcid{
+	ReferenceSequences: ReferenceSeqs{
 		"A": a.ReadString("T"),
 		"B": a.ReadString("V"),
 	},
-	GeneIndelScores: PositionalIndelScores{
-		"A": map[int][2]int{
+	GeneIndelScores: GenePositionalIndelScores{
+		"A": PositionalIndelScores{
 			0: [2]int{1, 2},
 			1: [2]int{3, 4},
 		},
