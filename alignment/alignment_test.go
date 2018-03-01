@@ -26,7 +26,7 @@ var (
 		IndelCodonOpeningBonus:   0,
 		IndelCodonExtensionBonus: 2,
 		GeneIndelScores:          nil,
-		ReferenceSequences:       ap.ReferenceSeqs{"A": ASEQ},
+		ReferenceSequences:       nil,
 	}
 )
 
