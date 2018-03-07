@@ -1,7 +1,7 @@
 package main
 
 import (
-	cli "github.com/hivdb/nucamino/cli/cli"
+	cli "github.com/hivdb/nucamino/cli"
 	hiv1bcli "github.com/hivdb/nucamino/cli/hiv1b"
 	"github.com/pkg/profile"
 )
@@ -33,16 +33,7 @@ func (self *HIV1BOptions) Execute(args []string) error {
 		OutputFormat:   self.OutputFormat,
 	}
 
-	alignmentParams := cli.AlignmentParameters{
-		IndelCodonOpeningBonus:   self.IndelCodonOpeningBonus,
-		IndelCodonExtensionBonus: self.IndelCodonExtensionBonus,
-		StopCodonPenalty:         self.StopCodonPenalty,
-		GapOpeningPenalty:        self.GapOpeningPenalty,
-		GapExtensionPenalty:      self.GapExtensionPenalty,
-	}
-
-	hiv1bcli.PerformAlignment(ioParams, self.Genes, self.Goroutines,
-		self.Quiet, alignmentParams)
+	hiv1bcli.PerformAlignment(ioParams, self.Genes, self.Goroutines, self.Quiet)
 
 	return nil
 }

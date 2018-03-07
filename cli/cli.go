@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hivdb/nucamino/alignment"
-	d "github.com/hivdb/nucamino/data"
+	ap "github.com/hivdb/nucamino/alignmentprofile"
 	h "github.com/hivdb/nucamino/scorehandler/general"
 	a "github.com/hivdb/nucamino/types/amino"
 	"github.com/hivdb/nucamino/utils/fastareader"
@@ -14,21 +14,6 @@ import (
 	"runtime"
 	"sync"
 )
-
-type Gene uint8
-
-const (
-	// hiv1b genes
-	GAG Gene = iota
-	POL
-	GP41
-)
-
-var GeneLookup = map[string]Gene{
-	"GAG":  GAG,
-	"POL":  POL,
-	"GP41": GP41,
-}
 
 type AlignmentResult struct {
 	Name   string
@@ -139,16 +124,6 @@ type IOParameters struct {
 	OutputFormat   string
 }
 
-type AlignmentParameters struct {
-	IndelCodonOpeningBonus   int
-	IndelCodonExtensionBonus int
-	StopCodonPenalty         int
-	GapOpeningPenalty        int
-	GapExtensionPenalty      int
-}
-
-type PositionalIndelScores map[Gene]map[int]([2]int)
-
 func PerformAlignment(
 	inputFileName string,
 	outputFileName string,
@@ -156,9 +131,8 @@ func PerformAlignment(
 	textGenes []string,
 	goroutines int,
 	quiet bool,
-	alignmentParams AlignmentParameters,
-	positionalIndelScores PositionalIndelScores,
-	referenceSequences d.SequenceMap) {
+	alignmentProfile ap.AlignmentProfile) {
+
 
 	// Configure runtime
 	runtime.LockOSThread()
@@ -197,11 +171,11 @@ func PerformAlignment(
 	}
 
 	genesCount := len(textGenes)
-	genes := make([]Gene, genesCount)
+	genes := make([]ap.Gene, genesCount)
 	refs := make([][]a.AminoAcid, genesCount)
 	for i, textGene := range textGenes {
-		genes[i] = GeneLookup[textGene]
-		refs[i] = referenceSequences[textGene]
+		genes[i] = ap.Gene(textGene)
+		refs[i] = alignmentProfile.ReferenceSequences[genes[i]]
 	}
 
 	var (
@@ -220,15 +194,7 @@ func PerformAlignment(
 		go func(idx int, rChan chan<- []AlignmentResult) {
 			scoreHandlers := make([]*h.GeneralScoreHandler, genesCount)
 			for i, gene := range genes {
-				positionalIndelScores, isPositionalIndelScoreSupported := positionalIndelScores[gene]
-				scoreHandlers[i] = h.New(
-					alignmentParams.StopCodonPenalty,
-					alignmentParams.GapOpeningPenalty,
-					alignmentParams.GapExtensionPenalty,
-					alignmentParams.IndelCodonOpeningBonus,
-					alignmentParams.IndelCodonExtensionBonus,
-					positionalIndelScores,
-					isPositionalIndelScoreSupported)
+				scoreHandlers[i] = h.New(gene, alignmentProfile)
 			}
 			for seq := range seqChan {
 				isSimpleAlignment := true
