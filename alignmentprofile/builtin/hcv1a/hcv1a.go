@@ -1,9 +1,8 @@
 package hcv1a
 
 import (
-	a "github.com/hivdb/nucamino/types/amino"
 	ap "github.com/hivdb/nucamino/alignmentprofile"
-	cli "github.com/hivdb/nucamino/cli"
+	a "github.com/hivdb/nucamino/types/amino"
 )
 
 var hcv1aPositionalIndelScores = ap.GenePositionalIndelScores{}
@@ -44,15 +43,13 @@ var (
 	`)
 )
 
-var HCV1ARefLookup = ap.ReferenceSeqs {
-	"NS3": HCV1ASEQ_NS3,
+var HCV1ARefLookup = ap.ReferenceSeqs{
+	"NS3":  HCV1ASEQ_NS3,
 	"NS5A": HCV1ASEQ_NS5A,
 	"NS5B": HCV1ASEQ_NS5B,
 }
 
-
-
-var alignmentProfile = ap.AlignmentProfile{
+var Profile = ap.AlignmentProfile{
 	StopCodonPenalty:         4,
 	GapOpeningPenalty:        10,
 	GapExtensionPenalty:      2,
@@ -60,20 +57,4 @@ var alignmentProfile = ap.AlignmentProfile{
 	IndelCodonExtensionBonus: 2,
 	GeneIndelScores:          hcv1aPositionalIndelScores,
 	ReferenceSequences:       HCV1ARefLookup,
-}
-
-func PerformAlignment(
-	ioParams cli.IOParameters,
-	cmdGenes []string,
-	goroutines int,
-	quiet bool) {
-
-	cli.PerformAlignment(
-		ioParams.InputFileName,
-		ioParams.OutputFileName,
-		ioParams.OutputFormat,
-		cmdGenes,
-		goroutines,
-		quiet,
-		alignmentProfile)
 }

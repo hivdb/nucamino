@@ -2,7 +2,6 @@ package hiv1b
 
 import (
 	ap "github.com/hivdb/nucamino/alignmentprofile"
-	cli "github.com/hivdb/nucamino/cli"
 	a "github.com/hivdb/nucamino/types/amino"
 )
 
@@ -216,7 +215,7 @@ var HIV1BRefLookup = ap.ReferenceSeqs{
 	"GP41": HIV1BSEQ_GP41,
 }
 
-var alignmentProfile = ap.AlignmentProfile{
+var Profile = ap.AlignmentProfile{
 	StopCodonPenalty:         4,
 	GapOpeningPenalty:        10,
 	GapExtensionPenalty:      2,
@@ -224,20 +223,4 @@ var alignmentProfile = ap.AlignmentProfile{
 	IndelCodonExtensionBonus: 2,
 	GeneIndelScores:          hiv1bPositionalIndelScores,
 	ReferenceSequences:       HIV1BRefLookup,
-}
-
-func PerformAlignment(
-	ioParams cli.IOParameters,
-	textGenes []string,
-	goroutines int,
-	quiet bool) {
-
-	cli.PerformAlignment(
-		ioParams.InputFileName,
-		ioParams.OutputFileName,
-		ioParams.OutputFormat,
-		textGenes,
-		goroutines,
-		quiet,
-		alignmentProfile)
 }
