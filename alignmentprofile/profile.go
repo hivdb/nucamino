@@ -2,6 +2,7 @@ package alignmentprofile
 
 import (
 	a "github.com/hivdb/nucamino/types/amino"
+	"sort"
 )
 
 type Gene string
@@ -56,6 +57,7 @@ func (profile AlignmentProfile) rawIndelScores() map[string][]rawIndelScore {
 			}
 			rawIndelScores = append(rawIndelScores, rawScore)
 		}
+		sort.Sort(byPositionAndKind(rawIndelScores))
 		result[string(gene)] = rawIndelScores
 	}
 	return result

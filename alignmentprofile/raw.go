@@ -26,6 +26,28 @@ func (t *rawIndelScore) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+// This type alias lets us implement the sorting interface for
+// []rawIndelScore. We sort it first by position (with lower positions
+// first) and then by kind (with insertions before deletions).
+type byPositionAndKind []rawIndelScore
+
+func (a byPositionAndKind) Len() int {
+	return len(a)
+}
+
+func (a byPositionAndKind) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a byPositionAndKind) Less(i, j int) bool {
+	if a[i].Position < a[j].Position {
+		return true
+	} else if a[i].Position == a[j].Position {
+		return a[i].Kind == "ins" && a[j].Kind == "del"
+	}
+	return false
+}
+
 // This is an intermediate datatype between an AlignmentProfile and
 // the YAML that represents it. The YAML is formatted for editing,
 // while the AlignmentProfile is formatted for ease of

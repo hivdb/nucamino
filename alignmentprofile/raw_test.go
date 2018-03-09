@@ -78,3 +78,41 @@ func TestGeneIndelScoresFromRawProfileWithInvalidScoreKind(t *testing.T) {
 		t.Errorf("Expected an error on indel kind 'foo'")
 	}
 }
+
+func TestRawIndelScoreSortOrder(t *testing.T) {
+	lessCases := [][]rawIndelScore{
+		{
+			{Position: 1},
+			{Position: 2},
+		},
+		{
+			{Position: 1, Kind: "ins"},
+			{Position: 1, Kind: "del"},
+		},
+		{
+			{Position: 1, Kind: "del"},
+			{Position: 2, Kind: "ins"},
+		},
+	}
+	for _, c := range lessCases {
+		if !byPositionAndKind(c).Less(0, 1) {
+			t.Errorf("Expected %v to be less than %v", c[0], c[1])
+		}
+	}
+	notLessCases := [][]rawIndelScore{
+		{
+			{Position: 2},
+			{Position: 1},
+		},
+		{
+			{Position: 1, Kind: "del"},
+			{Position: 1, Kind: "ins"},
+		},
+	}
+	for _, c := range notLessCases {
+		if byPositionAndKind(c).Less(0, 1) {
+			t.Errorf("Expected %v to be greater than %v", c[0], c[1])
+		}
+	}
+
+}
