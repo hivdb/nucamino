@@ -38,7 +38,7 @@ type rawAlignmentProfile struct {
 	GapExtensionPenalty      int                        `yaml:"GapExtensionPenalty"`
 	IndelCodonOpeningBonus   int                        `yaml:"IndelCodonOpeningBonus"`
 	IndelCodonExtensionBonus int                        `yaml:"IndelCodonExtensionBonus"`
-	GeneIndelScores          map[string][]rawIndelScore `yaml:"GeneIndelScore,flow"`
+	RawIndelScores           map[string][]rawIndelScore `yaml:"GeneIndelScores,flow"`
 	ReferenceSequences       map[string]string          `yaml:"ReferenceSequences"`
 }
 
@@ -46,7 +46,7 @@ type rawAlignmentProfile struct {
 // rawAlignentProfile (which has presumably been parsed from YAML).
 func (rawProfile rawAlignmentProfile) geneIndelScores() (*GenePositionalIndelScores, error) {
 	geneIndelScores := make(GenePositionalIndelScores)
-	for geneSrc, rawIndelScores := range rawProfile.GeneIndelScores {
+	for geneSrc, rawIndelScores := range rawProfile.RawIndelScores {
 		indelScores := make(PositionalIndelScores)
 		for _, indelScore := range rawIndelScores {
 			var scoreKeySign int

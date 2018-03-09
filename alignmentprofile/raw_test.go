@@ -25,7 +25,7 @@ func TestUnmarshalRawIndelScore(t *testing.T) {
 }
 
 var exampleRawProfile = rawAlignmentProfile{
-	GeneIndelScores: map[string][]rawIndelScore{
+	RawIndelScores: map[string][]rawIndelScore{
 		"A": []rawIndelScore{
 			rawIndelScore{
 				Kind:     "ins",
@@ -60,7 +60,7 @@ func TestGeneIndelScoresFromRawProfile(t *testing.T) {
 }
 
 var exampleInvalidRawProfile = rawAlignmentProfile{
-	GeneIndelScores: map[string][]rawIndelScore{
+	RawIndelScores: map[string][]rawIndelScore{
 		"A": []rawIndelScore{
 			rawIndelScore{
 				Kind:     "foo",
