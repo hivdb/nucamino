@@ -25,6 +25,11 @@ func TestUnmarshalRawIndelScore(t *testing.T) {
 }
 
 var exampleRawProfile = rawAlignmentProfile{
+	StopCodonPenalty: 0,
+	GapOpeningPenalty: 1,
+	GapExtensionPenalty: 2,
+	IndelCodonOpeningBonus: 3,
+	IndelCodonExtensionBonus: 4,
 	RawIndelScores: map[string][]rawIndelScore{
 		"A": []rawIndelScore{
 			rawIndelScore{
@@ -40,6 +45,10 @@ var exampleRawProfile = rawAlignmentProfile{
 				Extend:   6,
 			},
 		},
+	},
+	ReferenceSequences: map[string]string {
+		"A": "SGSWLRD",
+		"B": "CPPDSDVESYSSMPPLEGEPGDPD",
 	},
 }
 
