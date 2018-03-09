@@ -68,7 +68,7 @@ type rawAlignmentProfile struct {
 	GapExtensionPenalty      int                        `yaml:"GapExtensionPenalty"`
 	IndelCodonOpeningBonus   int                        `yaml:"IndelCodonOpeningBonus"`
 	IndelCodonExtensionBonus int                        `yaml:"IndelCodonExtensionBonus"`
-	RawIndelScores           map[string][]rawIndelScore `yaml:"GeneIndelScores,flow"`
+	RawIndelScores           map[string][]rawIndelScore `yaml:"PositionalIndelScores,flow"`
 	ReferenceSequences       map[string]string          `yaml:"ReferenceSequences"`
 }
 

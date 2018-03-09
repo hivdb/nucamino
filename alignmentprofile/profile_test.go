@@ -13,8 +13,8 @@ var exampleProfile = AlignmentProfile{
 	IndelCodonOpeningBonus:   4,
 	IndelCodonExtensionBonus: 5,
 	ReferenceSequences: ReferenceSeqs{
-		"A": a.ReadString("T"),
-		"B": a.ReadString("V"),
+		"A": a.ReadString("TTALIEPPVYPIVEHSDEKTAHEEH"),
+		"B": a.ReadString("CSNELVISHEADPVWRSAVLRGAP"),
 	},
 	GeneIndelScores: GenePositionalIndelScores{
 		Gene("A"): PositionalIndelScores{
@@ -22,6 +22,9 @@ var exampleProfile = AlignmentProfile{
 			6:  [2]int{7, 8},
 			-6: [2]int{7, 8},
 			-9: [2]int{10, 11},
+		},
+		Gene("B"): PositionalIndelScores{
+			2:  [2]int{1, 2},
 		},
 	},
 }
@@ -54,6 +57,9 @@ func TestRawIndelScoresFromProfile(t *testing.T) {
 			{Kind: "ins", Position: 6, Open: 7, Extend: 8},
 			{Kind: "del", Position: 6, Open: 7, Extend: 8},
 			{Kind: "del", Position: 9, Open: 10, Extend: 11},
+		},
+		"B": []rawIndelScore{
+			{Kind: "ins", Position: 2, Open: 1, Extend: 2},
 		},
 	}
 	constructed := exampleProfile.rawIndelScores()
