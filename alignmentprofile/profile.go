@@ -1,3 +1,6 @@
+// This package contains data structures that hold all the information
+// required by the alignment algorithm, and procedures for serializing
+// and deserializing that information.
 package alignmentprofile
 
 import (

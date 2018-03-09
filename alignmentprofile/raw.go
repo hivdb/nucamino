@@ -1,5 +1,12 @@
 package alignmentprofile
 
+// This file contains an intermediate representation of
+// AlignmentProfile that's used during serialization and
+// de-serialization. The serialization format is easier to read and
+// write by hand; the AlignmentProfile structure is more suitable for
+// calculation; the rawAlignmentProfile is both easy to
+// serialize/deserialize and easy to convert into an AlignmentProfile.
+
 import (
 	"fmt"
 	a "github.com/hivdb/nucamino/types/amino"
