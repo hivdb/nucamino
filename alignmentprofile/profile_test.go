@@ -12,19 +12,6 @@ var exampleProfile = AlignmentProfile{
 	},
 }
 
-var exampleProfileWithPositionalIndelScores = AlignmentProfile{
-	ReferenceSequences: ReferenceSeqs{
-		"A": a.ReadString("T"),
-		"B": a.ReadString("V"),
-	},
-	GeneIndelScores: GenePositionalIndelScores{
-		"A": PositionalIndelScores{
-			0: [2]int{1, 2},
-			1: [2]int{3, 4},
-		},
-	},
-}
-
 func TestGenes(t *testing.T) {
 	genes := exampleProfile.Genes()
 	expected := [2]Gene{"A", "B"}
@@ -45,26 +32,4 @@ func TestGenes(t *testing.T) {
 		}
 	}
 
-}
-
-func TestPositionalIndelScoreSupportChecking(t *testing.T) {
-	if exampleProfile.SupportsPositionalIndelScores() {
-		t.Errorf("This example profile doens't have positional indel scores")
-	}
-	if !exampleProfileWithPositionalIndelScores.SupportsPositionalIndelScores() {
-		t.Errorf("This example profile does have positional indel scores")
-	}
-}
-
-func TestPositionalIndelScoresByGene(t *testing.T) {
-	p := exampleProfileWithPositionalIndelScores
-	if !p.SupportsPositionalIndelScoresFor("A") {
-		t.Errorf("Expected this profile to have scores for 'A'")
-	}
-	if p.SupportsPositionalIndelScoresFor("B") {
-		t.Errorf("Expected no scores for 'B'")
-	}
-	if exampleProfile.SupportsPositionalIndelScoresFor("A") {
-		t.Errorf("Expected no support from this profile")
-	}
 }
