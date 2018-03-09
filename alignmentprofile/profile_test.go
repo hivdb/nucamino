@@ -61,3 +61,15 @@ func TestRawIndelScoresFromProfile(t *testing.T) {
 		t.Errorf("%v != %v", constructed, expected)
 	}
 }
+
+func TestRoundTripToRawProfile(t *testing.T) {
+	raw := exampleProfile.asRaw()
+	constructed, err := raw.asProfile()
+	if err != nil {
+		t.Errorf("Unexpected error while converting profile to raw profile: %v", err)
+		t.FailNow()
+	}
+	if !reflect.DeepEqual(*constructed, exampleProfile) {
+		t.Errorf("%v != %v", *constructed, exampleProfile)
+	}
+}

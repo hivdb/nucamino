@@ -62,3 +62,22 @@ func (profile AlignmentProfile) rawIndelScores() map[string][]rawIndelScore {
 	}
 	return result
 }
+
+func (profile AlignmentProfile) asRaw() rawAlignmentProfile {
+	var raw rawAlignmentProfile
+	raw.StopCodonPenalty = profile.StopCodonPenalty
+	raw.GapOpeningPenalty = profile.GapOpeningPenalty
+	raw.GapExtensionPenalty = profile.GapExtensionPenalty
+	raw.IndelCodonOpeningBonus = profile.IndelCodonOpeningBonus
+	raw.IndelCodonExtensionBonus = profile.IndelCodonExtensionBonus
+
+	raw.ReferenceSequences = make(map[string]string)
+	for gene, aaSeq := range profile.ReferenceSequences {
+		raw.ReferenceSequences[string(gene)] = a.WriteString(aaSeq)
+	}
+
+	if profile.GeneIndelScores != nil {
+		raw.RawIndelScores = profile.rawIndelScores()
+	}
+	return raw
+}

@@ -25,10 +25,10 @@ func TestUnmarshalRawIndelScore(t *testing.T) {
 }
 
 var exampleRawProfile = rawAlignmentProfile{
-	StopCodonPenalty: 0,
-	GapOpeningPenalty: 1,
-	GapExtensionPenalty: 2,
-	IndelCodonOpeningBonus: 3,
+	StopCodonPenalty:         0,
+	GapOpeningPenalty:        1,
+	GapExtensionPenalty:      2,
+	IndelCodonOpeningBonus:   3,
 	IndelCodonExtensionBonus: 4,
 	RawIndelScores: map[string][]rawIndelScore{
 		"A": []rawIndelScore{
@@ -46,7 +46,7 @@ var exampleRawProfile = rawAlignmentProfile{
 			},
 		},
 	},
-	ReferenceSequences: map[string]string {
+	ReferenceSequences: map[string]string{
 		"A": "SGSWLRD",
 		"B": "CPPDSDVESYSSMPPLEGEPGDPD",
 	},
@@ -123,5 +123,16 @@ func TestRawIndelScoreSortOrder(t *testing.T) {
 			t.Errorf("Expected %v to be greater than %v", c[0], c[1])
 		}
 	}
+}
 
+func TestRoundTipToAlignmentProfile(t *testing.T) {
+	profile, err := exampleRawProfile.asProfile()
+	if err != nil {
+		t.Errorf("Unexpected error while converting raw profile to profile: %v", err)
+		t.FailNow()
+	}
+	constructed := profile.asRaw()
+	if !reflect.DeepEqual(constructed, exampleRawProfile) {
+		t.Errorf("%v != %v", constructed, exampleRawProfile)
+	}
 }

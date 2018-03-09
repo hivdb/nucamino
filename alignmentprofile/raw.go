@@ -2,6 +2,7 @@ package alignmentprofile
 
 import (
 	"fmt"
+	a "github.com/hivdb/nucamino/types/amino"
 )
 
 // This structure is a de-serialization target that the YAML package
@@ -86,4 +87,35 @@ func (rawProfile rawAlignmentProfile) geneIndelScores() (*GenePositionalIndelSco
 		geneIndelScores[Gene(geneSrc)] = indelScores
 	}
 	return &geneIndelScores, nil
+}
+
+// Construct an AlignmentProfile from a rawAlignmentProfile
+func (raw rawAlignmentProfile) asProfile() (*AlignmentProfile, error) {
+	var profile AlignmentProfile
+	profile.StopCodonPenalty = raw.StopCodonPenalty
+	profile.GapOpeningPenalty = raw.GapOpeningPenalty
+	profile.GapExtensionPenalty = raw.GapExtensionPenalty
+	profile.IndelCodonOpeningBonus = raw.IndelCodonOpeningBonus
+	profile.IndelCodonExtensionBonus = raw.IndelCodonExtensionBonus
+
+	if len(raw.ReferenceSequences) == 0 {
+		return nil, fmt.Errorf("Missing key: ReferenceSequences")
+	} else {
+		profile.ReferenceSequences = make(ReferenceSeqs)
+		for geneSrc, aaSrc := range raw.ReferenceSequences {
+			profile.ReferenceSequences[Gene(geneSrc)] = a.ReadString(aaSrc)
+		}
+	}
+
+	if raw.RawIndelScores == nil || len(raw.RawIndelScores) == 0 {
+		profile.GeneIndelScores = nil
+	} else {
+		geneIndelScores, err := raw.geneIndelScores()
+		if err != nil {
+			return nil, err
+		}
+		profile.GeneIndelScores = *geneIndelScores
+	}
+
+	return &profile, nil
 }
