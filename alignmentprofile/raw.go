@@ -1,5 +1,9 @@
 package alignmentprofile
 
+import (
+	"fmt"
+)
+
 // This structure is a de-serialization target that the YAML package
 // uses to parse the GeneIndelScores in a serialized profile.
 type rawIndelScore struct {
@@ -36,4 +40,28 @@ type rawAlignmentProfile struct {
 	IndelCodonExtensionBonus int                        `yaml:"IndelCodonExtensionBonus"`
 	GeneIndelScores          map[string][]rawIndelScore `yaml:"GeneIndelScore,flow"`
 	ReferenceSequences       map[string]string          `yaml:"ReferenceSequences"`
+}
+
+// Construct a GenePositionalIndelScores instance from a
+// rawAlignentProfile (which has presumably been parsed from YAML).
+func (rawProfile rawAlignmentProfile) geneIndelScores() (*GenePositionalIndelScores, error) {
+	geneIndelScores := make(GenePositionalIndelScores)
+	for geneSrc, rawIndelScores := range rawProfile.GeneIndelScores {
+		indelScores := make(PositionalIndelScores)
+		for _, indelScore := range rawIndelScores {
+			var scoreKeySign int
+			if indelScore.Kind == "ins" {
+				scoreKeySign = 1
+			} else if indelScore.Kind == "del" {
+				scoreKeySign = -1
+			} else {
+				msgFmt := "Unknown indel score kind '%v' (expecting 'ins' or 'del')"
+				return nil, fmt.Errorf(msgFmt, indelScore.Kind)
+			}
+			indelKey := scoreKeySign * indelScore.Position
+			indelScores[indelKey] = [2]int{indelScore.Open, indelScore.Extend}
+		}
+		geneIndelScores[Gene(geneSrc)] = indelScores
+	}
+	return &geneIndelScores, nil
 }
