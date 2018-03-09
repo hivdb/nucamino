@@ -2,6 +2,7 @@ package alignmentprofile
 
 import (
 	a "github.com/hivdb/nucamino/types/amino"
+	"reflect"
 	"testing"
 )
 
@@ -43,5 +44,20 @@ func TestGenes(t *testing.T) {
 		if !found {
 			t.Errorf("Missing key: %v", exp)
 		}
+	}
+}
+
+func TestRawIndelScoresFromProfile(t *testing.T) {
+	expected := map[string][]rawIndelScore{
+		"A": []rawIndelScore{
+			{Kind: "ins", Position: 3, Open: 4, Extend: 5},
+			{Kind: "ins", Position: 6, Open: 7, Extend: 8},
+			{Kind: "del", Position: 6, Open: 7, Extend: 8},
+			{Kind: "del", Position: 9, Open: 10, Extend: 11},
+		},
+	}
+	constructed := exampleProfile.rawIndelScores()
+	if !reflect.DeepEqual(constructed, expected) {
+		t.Errorf("%v != %v", constructed, expected)
 	}
 }

@@ -30,3 +30,33 @@ func (profile AlignmentProfile) Genes() []Gene {
 	}
 	return genes
 }
+
+func (profile AlignmentProfile) rawIndelScores() map[string][]rawIndelScore {
+	result := make(map[string][]rawIndelScore)
+	for gene, positionalIndelScores := range profile.GeneIndelScores {
+		rawIndelScores := make([]rawIndelScore, 0, len(positionalIndelScores))
+		for posKey, scores := range positionalIndelScores {
+			var pos int
+			var kind string
+			// Interpret the position key in the positional indel
+			// scores map: the magnitude is the position, negative
+			// indicates deletion.
+			if posKey >= 0 {
+				pos = posKey
+				kind = "ins"
+			} else {
+				pos = -posKey
+				kind = "del"
+			}
+			rawScore := rawIndelScore{
+				Kind:     kind,
+				Position: pos,
+				Open:     scores[0],
+				Extend:   scores[1],
+			}
+			rawIndelScores = append(rawIndelScores, rawScore)
+		}
+		result[string(gene)] = rawIndelScores
+	}
+	return result
+}
