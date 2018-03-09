@@ -24,7 +24,7 @@ var exampleProfile = AlignmentProfile{
 			-9: [2]int{10, 11},
 		},
 		Gene("B"): PositionalIndelScores{
-			2:  [2]int{1, 2},
+			2: [2]int{1, 2},
 		},
 	},
 }

@@ -1,10 +1,9 @@
 package alignmentprofile
 
 import (
-	"testing"
 	"reflect"
+	"testing"
 )
-
 
 func TestFormatParseRoundTrip(t *testing.T) {
 	formatted := Format(exampleProfile)
@@ -18,7 +17,7 @@ func TestFormatParseRoundTrip(t *testing.T) {
 	}
 }
 
-var exampleProfileYAML =`StopCodonPenalty: 1
+var exampleProfileYAML = `StopCodonPenalty: 1
 GapOpeningPenalty: 2
 GapExtensionPenalty: 3
 IndelCodonOpeningBonus: 4
