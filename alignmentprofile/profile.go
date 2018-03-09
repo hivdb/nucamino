@@ -23,7 +23,7 @@ type AlignmentProfile struct {
 }
 
 // An array of all the genes supported by this alignment profile.
-func (profile *AlignmentProfile) Genes() []Gene {
+func (profile AlignmentProfile) Genes() []Gene {
 	var genes = make([]Gene, 0, len(profile.ReferenceSequences))
 	for gene, _ := range profile.ReferenceSequences {
 		genes = append(genes, gene)
