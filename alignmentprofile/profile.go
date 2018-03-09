@@ -84,3 +84,9 @@ func (profile AlignmentProfile) asRaw() rawAlignmentProfile {
 	}
 	return raw
 }
+
+// Retrieve the positional indel scores for a Gene.
+func (profile *AlignmentProfile) PositionalIndelScoresFor(g Gene) (PositionalIndelScores, bool) {
+	scores, found := profile.GeneIndelScores[g]
+	return scores, found
+}
