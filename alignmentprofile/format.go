@@ -19,7 +19,7 @@ ReferenceSequences:
 {{ range $gene, $seq := .ReferenceSequences }}  {{$gene}}:
     {{$seq}}
 {{end -}}
-PositionalIndelScores:
+{{ if .RawIndelScores -}} PositionalIndelScores: {{- end }}
 {{range $gene, $rawIndels := .RawIndelScores}}  {{$gene}}:
 {{- range $rawIndels}}
     - [ {{.Kind}}, {{.Position}}, {{.Open}}, {{.Extend}} ]
