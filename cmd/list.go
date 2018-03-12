@@ -38,10 +38,10 @@ the regular expression syntax.`,
 			if err != nil {
 				log.Printf("Error in pattern: %v", err)
 				os.Exit(1)
-				return 
+				return
 			}
 			matchingProfileNames := make([]string, 0, len(profileNames))
-			for _, name := range(profileNames) {
+			for _, name := range profileNames {
 				if pattern.MatchString(name) {
 					matchingProfileNames = append(matchingProfileNames, name)
 				}

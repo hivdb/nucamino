@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-var profiles = map[string]ap.AlignmentProfile {
+var profiles = map[string]ap.AlignmentProfile{
 	"hcv1a": hcv1a.Profile,
 	"hiv1b": hiv1b.Profile,
 }
@@ -19,7 +19,7 @@ func Get(name string) (*ap.AlignmentProfile, bool) {
 
 func List() []string {
 	keys := make([]string, 0, len(profiles))
-	for k := range(profiles) {
+	for k := range profiles {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

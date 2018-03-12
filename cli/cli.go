@@ -37,7 +37,6 @@ func writeTSV(
 		file.WriteString("\t" + textGene + " FrameShifts")
 	}
 	file.WriteString("\n")
-
 	for _, seq := range seqs {
 		result := resultMap[seq.Name]
 		if result == nil {

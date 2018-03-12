@@ -2,15 +2,15 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "nucamino",
 	Short: "A codon-aware viral genome aligner",
-	Long: `bla bla bla`,
+	Long:  `bla bla bla`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
