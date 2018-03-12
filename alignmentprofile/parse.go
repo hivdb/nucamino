@@ -25,5 +25,9 @@ func Parse(src string) (*AlignmentProfile, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = profile.validate()
+	if err != nil {
+		return nil, err
+	}
 	return &profile, nil
 }

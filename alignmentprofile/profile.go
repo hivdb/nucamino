@@ -4,6 +4,7 @@
 package alignmentprofile
 
 import (
+	"fmt"
 	a "github.com/hivdb/nucamino/types/amino"
 	"sort"
 )
@@ -89,4 +90,13 @@ func (profile AlignmentProfile) asRaw() rawAlignmentProfile {
 func (profile *AlignmentProfile) PositionalIndelScoresFor(g Gene) (PositionalIndelScores, bool) {
 	scores, found := profile.GeneIndelScores[g]
 	return scores, found
+}
+
+
+// Check that the profile isn't empty
+func (profile AlignmentProfile) validate() error {
+	if len(profile.ReferenceSequences) == 0 {
+		return fmt.Errorf("Missing key: ReferenceSequence")
+	}
+	return nil
 }
