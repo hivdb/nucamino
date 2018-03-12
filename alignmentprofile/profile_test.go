@@ -79,3 +79,14 @@ func TestRoundTripToRawProfile(t *testing.T) {
 		t.Errorf("%v != %v", *constructed, exampleProfile)
 	}
 }
+
+func TestRetrievingPositionalIndelScores(t *testing.T) {
+	_, found := exampleProfile.PositionalIndelScoresFor("A")
+	if !found {
+		t.Errorf("Failed to retrieve positional indel scores in example profile")
+	}
+	_, found = exampleProfile.PositionalIndelScoresFor("Z")
+	if found {
+		t.Errorf("Found positional indel scores for non-existent gene in example profile")
+	}
+}
