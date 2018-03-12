@@ -2,31 +2,129 @@ package cmd
 
 import (
 	"fmt"
+	ap "github.com/hivdb/nucamino/alignmentprofile"
+	"github.com/hivdb/nucamino/alignmentprofile/builtin"
+	"github.com/hivdb/nucamino/cli"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
-// alignCmd represents the align command
-var alignCmd = &cobra.Command{
-	Use:   "align",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("align called")
-	},
-}
+// The cobra cli library will populate these variables with values
+// provided as command line flags.
+var alignInputFilename, alignOutputFilename, alignOutputFormat string
+var alignQuiet bool
+var alignGoroutines int
 
 func init() {
 	rootCmd.AddCommand(alignCmd)
+
 	alignCmd.Flags().StringVarP(
 		&alignInputFilename,
 		"input-file",
 		"i",
 		"-",
-		"Input file (default: standard input)",
+		"input file",
 	)
+	alignCmd.Flags().StringVarP(
+		&alignOutputFilename,
+		"output-file",
+		"o",
+		"-",
+		"output File",
+	)
+	alignCmd.Flags().StringVarP(
+		&alignOutputFormat,
+		"output-format",
+		"f",
+		"tsv",
+		"output format. (options: \"tsv\", \"json\")",
+	)
+	alignCmd.Flags().BoolVarP(
+		&alignQuiet,
+		"quiet",
+		"q",
+		false,
+		"hide non-error output message",
+	)
+	alignCmd.Flags().IntVar(
+		&alignGoroutines,
+		"goroutines",
+		0,
+		"number of goroutines the aligner will use. (default: number of CPUs)",
+	)
+}
+
+// Check that a gene-name is in a list of GEnes
+func geneInGenes(geneArg string, genes []ap.Gene) bool {
+	for _, g := range genes {
+		if g.Matches(geneArg) {
+			return true
+		}
+	}
+	return false
+}
+
+func alignGetParameters(args []string) (*ap.AlignmentProfile, []string, error) {
+
+	profileName := args[0]
+	profile, found := builtin.Get(profileName)
+	if !found {
+		tmpl := `Unknown profile name: '%v'
+
+See 'nucamino profile list' for a list of available profiles`
+		err := fmt.Errorf(tmpl, profileName)
+		return nil, nil, err
+	}
+
+	genes := strings.Split(args[1], ",")
+	profileGenes := profile.Genes()
+	for _, gene := range genes {
+		if !geneInGenes(gene, profileGenes) {
+			tmpl := "%v is not an available gene in the profile %v (available genes: %v)"
+			err := fmt.Errorf(tmpl, gene, profileName, profileGenes)
+			return nil, nil, err
+		}
+	}
+
+	return profile, genes, nil
+}
+
+func alignRun(cmd *cobra.Command, args []string) error {
+	profile, genes, err := alignGetParameters(args)
+	if err != nil {
+		return err
+	}
+	return cli.PerformAlignment(
+		alignInputFilename,
+		alignOutputFilename,
+		alignOutputFormat,
+		genes,
+		alignGoroutines,
+		alignQuiet,
+		*profile,
+	)
+}
+
+var alignLongMsg = `
+Loads nucleotide sequences from a FASTA file and
+aligns them using a built-in profile. The first argument is the name
+of the built-in profile to use for the alignment. The second argument
+is a comma separated list of genes to align against. (This list should
+either be surrounded by quote marks or contain no spaces).
+
+Examples:
+
+	nucamino align hcv1a ns3,nsb
+	nucamino align hiv1bg 'gag, pol'
+
+See 'nucamino profile list' for the available alignment profiles.
+
+Use 'nucamino align-with' to use a custom alignment profile.`
+
+var alignCmd = &cobra.Command{
+	Use:   "align <profile name> <genes> [flags]",
+	Short: "align sequences in a FASTA file using a built-in alignment profile",
+	Long:  alignLongMsg,
+	Args:  cobra.ExactArgs(2),
+	RunE:  alignRun,
 }
