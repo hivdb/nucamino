@@ -30,7 +30,6 @@ var profileTemplate *template.Template
 
 func init() {
 	profileTemplate = template.Must(template.New("alignmentprofile").Parse(profileTemplateSrc))
-
 }
 
 func Format(ap AlignmentProfile) string {
