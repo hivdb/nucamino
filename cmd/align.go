@@ -5,6 +5,7 @@ import (
 	ap "github.com/hivdb/nucamino/alignmentprofile"
 	"github.com/hivdb/nucamino/alignmentprofile/builtin"
 	"github.com/hivdb/nucamino/cli"
+	"github.com/pkg/profile"
 	"github.com/spf13/cobra"
 	"strings"
 )
@@ -12,7 +13,7 @@ import (
 // The cobra cli library will populate these variables with values
 // provided as command line flags.
 var alignInputFilename, alignOutputFilename, alignOutputFormat string
-var alignQuiet bool
+var alignQuiet, alignPprof bool
 var alignGoroutines int
 
 func init() {
@@ -45,6 +46,13 @@ func init() {
 		"q",
 		false,
 		"hide non-error output message",
+	)
+	alignCmd.Flags().BoolVarP(
+		&alignPprof,
+		"pprof",
+		"p",
+		false,
+		"save profiling information",
 	)
 	alignCmd.Flags().IntVar(
 		&alignGoroutines,
@@ -90,6 +98,9 @@ See 'nucamino profile list' for a list of available profiles`
 }
 
 func alignRun(cmd *cobra.Command, args []string) error {
+	if alignPprof {
+		defer profile.Start(profile.CPUProfile).Stop()
+	}
 	profile, genes, err := alignGetParameters(args)
 	if err != nil {
 		return err
