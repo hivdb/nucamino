@@ -11,7 +11,7 @@ import (
 // printCmd represents the print command
 var printCmd = &cobra.Command{
 	Use:   "print <profile name>",
-	Short: "Print the contents of a built-in profile",
+	Short: "Print the contents of a built-in profile.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		profileName := args[0]

@@ -117,16 +117,17 @@ func alignRun(cmd *cobra.Command, args []string) error {
 }
 
 var alignLongMsg = `
-Loads nucleotide sequences from a FASTA file and
-aligns them using a built-in profile. The first argument is the name
-of the built-in profile to use for the alignment. The second argument
-is a comma separated list of genes to align against. (This list should
-either be surrounded by quote marks or contain no spaces).
+Loads nucleotide sequences from a FASTA file and aligns them using a
+built-in profile. The first argument is the name of the built-in
+profile to use for the alignment. The second argument is a comma
+separated list of genes to align against. (This list should either be
+surrounded by quote marks or contain no spaces).
 
 Examples:
 
-	nucamino align hcv1a ns3,nsb
-	nucamino align hiv1bg 'gag, pol'
+	nucamino align hiv1b pol
+	nucamino align hcv1a NS3,NS5B
+	nucamino align hiv1b 'gag, pol'
 
 See 'nucamino profile list' for the available alignment profiles.
 

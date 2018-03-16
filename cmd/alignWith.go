@@ -106,7 +106,7 @@ func alignWithRun(cmd *cobra.Command, args []string) error {
 }
 
 var alignWithLongMsg = `
-Loads nucleotide sequences from a FASTA file and alignts them using a
+Loads nucleotide sequences from a FASTA file and aligns them using a
 custom profile loaded from a YAML file. The first argument is the path
 to the YAML file containing the profile. The second argument is a
 comma separated list of genes to align against. (This list should

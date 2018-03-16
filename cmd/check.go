@@ -18,7 +18,7 @@ Loads a YAML document and parses an alignment profile from it. Checks
 that the required 'ReferenceSequences' value is present, that amino
 acid sequences are valid, and that algorithm parameters have the
 appropriate types. The argument, if given, is the filename to load the
-profile from; reads from stdin if no argument is given.
+profile from; reads from standard input if no argument is given.
 
 Example:
 

@@ -10,7 +10,7 @@ var profileCmd = &cobra.Command{
 	Short: "Manage alignment profiles",
 	Long: `An alignment profile contains all the information that nucamino needs to align
 a nucleotide sequence: alignment tuning parameters, reference sequences, and the
-list of custom scores for known in-dels.`,
+list of custom scores for known indels.`,
 }
 
 func init() {

@@ -10,7 +10,10 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "nucamino",
 	Short: "A codon-aware viral genome aligner",
-	Long:  `bla bla bla`,
+	// TODO(nknight): Add a (Long: str) more detailed description of what
+	// Nucamino is, what are its capabilities and limitations, what
+	// applications it's suitable/not suitable for, and where to find
+	// more information.
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
