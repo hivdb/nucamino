@@ -13,7 +13,7 @@ var checkCmd = &cobra.Command{
 	Use:   "check [filename]",
 	Short: "verify that nucamino can load the given custom alignment profile",
 	Args:  cobra.RangeArgs(0, 1),
-	Long:  `
+	Long: `
 Loads a YAML document and parses an alignment profile from it. Checks
 that the required 'ReferenceSequences' value is present, that amino
 acid sequences are valid, and that algorithm parameters have the
@@ -26,7 +26,7 @@ Example:
 	nucamino profile check < test.yaml
 
 See 'nucamino profile print' for examples for profiles.`,
-	Run:   runCheck,
+	Run: runCheck,
 }
 
 func init() {

@@ -92,7 +92,6 @@ func (profile *AlignmentProfile) PositionalIndelScoresFor(g Gene) (PositionalInd
 	return scores, found
 }
 
-
 // Check that the profile isn't empty
 func (profile AlignmentProfile) validate() error {
 	if len(profile.ReferenceSequences) == 0 {
