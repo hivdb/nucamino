@@ -133,7 +133,6 @@ func PerformAlignment(
 	quiet bool,
 	alignmentProfile ap.AlignmentProfile) {
 
-
 	// Configure runtime
 	runtime.LockOSThread()
 	numCPU := runtime.NumCPU()

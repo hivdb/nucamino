@@ -1,8 +1,8 @@
 package main
 
 import (
+	hiv1b "github.com/hivdb/nucamino/alignmentprofile/builtin/hiv1b"
 	cli "github.com/hivdb/nucamino/cli"
-	hiv1bcli "github.com/hivdb/nucamino/cli/hiv1b"
 	"github.com/pkg/profile"
 )
 
@@ -33,7 +33,14 @@ func (self *HIV1BOptions) Execute(args []string) error {
 		OutputFormat:   self.OutputFormat,
 	}
 
-	hiv1bcli.PerformAlignment(ioParams, self.Genes, self.Goroutines, self.Quiet)
+	cli.PerformAlignment(
+		ioParams.InputFileName,
+		ioParams.OutputFileName,
+		ioParams.OutputFormat,
+		self.Genes,
+		self.Goroutines,
+		self.Quiet,
+		hiv1b.Profile)
 
 	return nil
 }

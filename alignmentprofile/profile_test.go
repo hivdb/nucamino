@@ -2,25 +2,29 @@ package alignmentprofile
 
 import (
 	a "github.com/hivdb/nucamino/types/amino"
+	"reflect"
 	"testing"
 )
 
 var exampleProfile = AlignmentProfile{
+	StopCodonPenalty:         1,
+	GapOpeningPenalty:        2,
+	GapExtensionPenalty:      3,
+	IndelCodonOpeningBonus:   4,
+	IndelCodonExtensionBonus: 5,
 	ReferenceSequences: ReferenceSeqs{
-		"A": a.ReadString("T"),
-		"B": a.ReadString("V"),
-	},
-}
-
-var exampleProfileWithPositionalIndelScores = AlignmentProfile{
-	ReferenceSequences: ReferenceSeqs{
-		"A": a.ReadString("T"),
-		"B": a.ReadString("V"),
+		"A": a.ReadString("TTALIEPPVYPIVEHSDEKTAHEEH"),
+		"B": a.ReadString("CSNELVISHEADPVWRSAVLRGAP"),
 	},
 	GeneIndelScores: GenePositionalIndelScores{
-		"A": PositionalIndelScores{
-			0: [2]int{1, 2},
-			1: [2]int{3, 4},
+		Gene("A"): PositionalIndelScores{
+			3:  [2]int{4, 5},
+			6:  [2]int{7, 8},
+			-6: [2]int{7, 8},
+			-9: [2]int{10, 11},
+		},
+		Gene("B"): PositionalIndelScores{
+			2: [2]int{1, 2},
 		},
 	},
 }
@@ -44,27 +48,45 @@ func TestGenes(t *testing.T) {
 			t.Errorf("Missing key: %v", exp)
 		}
 	}
-
 }
 
-func TestPositionalIndelScoreSupportChecking(t *testing.T) {
-	if exampleProfile.SupportsPositionalIndelScores() {
-		t.Errorf("This example profile doens't have positional indel scores")
+func TestRawIndelScoresFromProfile(t *testing.T) {
+	expected := map[string][]rawIndelScore{
+		"A": []rawIndelScore{
+			{Kind: "ins", Position: 3, Open: 4, Extend: 5},
+			{Kind: "ins", Position: 6, Open: 7, Extend: 8},
+			{Kind: "del", Position: 6, Open: 7, Extend: 8},
+			{Kind: "del", Position: 9, Open: 10, Extend: 11},
+		},
+		"B": []rawIndelScore{
+			{Kind: "ins", Position: 2, Open: 1, Extend: 2},
+		},
 	}
-	if !exampleProfileWithPositionalIndelScores.SupportsPositionalIndelScores() {
-		t.Errorf("This example profile does have positional indel scores")
+	constructed := exampleProfile.rawIndelScores()
+	if !reflect.DeepEqual(constructed, expected) {
+		t.Errorf("%v != %v", constructed, expected)
 	}
 }
 
-func TestPositionalIndelScoresByGene(t *testing.T) {
-	p := exampleProfileWithPositionalIndelScores
-	if !p.SupportsPositionalIndelScoresFor("A") {
-		t.Errorf("Expected this profile to have scores for 'A'")
+func TestRoundTripToRawProfile(t *testing.T) {
+	raw := exampleProfile.asRaw()
+	constructed, err := raw.asProfile()
+	if err != nil {
+		t.Errorf("Unexpected error while converting profile to raw profile: %v", err)
+		t.FailNow()
 	}
-	if p.SupportsPositionalIndelScoresFor("B") {
-		t.Errorf("Expected no scores for 'B'")
+	if !reflect.DeepEqual(*constructed, exampleProfile) {
+		t.Errorf("%v != %v", *constructed, exampleProfile)
 	}
-	if exampleProfile.SupportsPositionalIndelScoresFor("A") {
-		t.Errorf("Expected no support from this profile")
+}
+
+func TestRetrievingPositionalIndelScores(t *testing.T) {
+	_, found := exampleProfile.PositionalIndelScoresFor("A")
+	if !found {
+		t.Errorf("Failed to retrieve positional indel scores in example profile")
+	}
+	_, found = exampleProfile.PositionalIndelScoresFor("Z")
+	if found {
+		t.Errorf("Found positional indel scores for non-existent gene in example profile")
 	}
 }

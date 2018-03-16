@@ -1,8 +1,8 @@
 package main
 
 import (
+	hcv1a "github.com/hivdb/nucamino/alignmentprofile/builtin/hcv1a"
 	cli "github.com/hivdb/nucamino/cli"
-	hcv1acli "github.com/hivdb/nucamino/cli/hcv1a"
 	"github.com/pkg/profile"
 )
 
@@ -33,7 +33,14 @@ func (self *HCV1AOptions) Execute(args []string) error {
 		OutputFormat:   self.OutputFormat,
 	}
 
-	hcv1acli.PerformAlignment(ioParams, self.Genes, self.Goroutines, self.Quiet)
+	cli.PerformAlignment(
+		ioParams.InputFileName,
+		ioParams.OutputFileName,
+		ioParams.OutputFormat,
+		self.Genes,
+		self.Goroutines,
+		self.Quiet,
+		hcv1a.Profile)
 
 	return nil
 }
