@@ -1,3 +1,3 @@
-FROM golang:1.9-alpine3.6
-RUN apk add --no-cache git graphviz ttf-droid gcc
+FROM golang:1.10-stretch
+RUN apt-get update -q && apt-get install -qy git graphviz fonts-noto
 VOLUME ["/go"]
