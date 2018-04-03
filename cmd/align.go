@@ -85,6 +85,9 @@ See 'nucamino profile list' for a list of available profiles`
 	}
 
 	genes := strings.Split(args[1], ",")
+	for idx, gene := range genes {
+		genes[idx] = strings.ToUpper(gene)
+	}
 	profileGenes := profile.Genes()
 	for _, gene := range genes {
 		if !geneInGenes(gene, profileGenes) {
