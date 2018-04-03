@@ -22,6 +22,16 @@ type AlignmentResult struct {
 	Err    error
 }
 
+func validOutputFormat(format string) bool {
+	validFormats := []string{"json", "tsv"}
+	for _, validFormat := range validFormats {
+		if format == validFormat {
+			return true
+		}
+	}
+	return false
+}
+
 func writeTSV(
 	file *os.File, textGenes []string,
 	seqs []fastareader.Sequence, resultMap map[string][]AlignmentResult) {
@@ -37,7 +47,6 @@ func writeTSV(
 		file.WriteString("\t" + textGene + " FrameShifts")
 	}
 	file.WriteString("\n")
-
 	for _, seq := range seqs {
 		result := resultMap[seq.Name]
 		if result == nil {
@@ -118,12 +127,6 @@ func seqSlice2Chan(s []fastareader.Sequence, bufferSize int) chan fastareader.Se
 	return c
 }
 
-type IOParameters struct {
-	InputFileName  string
-	OutputFileName string
-	OutputFormat   string
-}
-
 func PerformAlignment(
 	inputFileName string,
 	outputFileName string,
@@ -131,7 +134,13 @@ func PerformAlignment(
 	textGenes []string,
 	goroutines int,
 	quiet bool,
-	alignmentProfile ap.AlignmentProfile) {
+	alignmentProfile ap.AlignmentProfile) error {
+
+	// Check output format
+	if !validOutputFormat(outputFormat) {
+		err := fmt.Errorf("Unknown output format %v. Options are: tsv, json", outputFormat)
+		return err
+	}
 
 	// Configure runtime
 	runtime.LockOSThread()
@@ -155,8 +164,7 @@ func PerformAlignment(
 	} else {
 		input, err = os.Open(inputFileName)
 		if err != nil {
-			logger.Fatal(err)
-			return
+			return err
 		}
 	}
 	if outputFileName == "-" {
@@ -164,8 +172,7 @@ func PerformAlignment(
 	} else {
 		output, err = os.Create(outputFileName)
 		if err != nil {
-			logger.Fatal(err)
-			return
+			return err
 		}
 	}
 
@@ -241,4 +248,5 @@ func PerformAlignment(
 	if !quiet && outputFileName != "-" {
 		logger.Printf("Created alignment result file %s.", outputFileName)
 	}
+	return nil
 }

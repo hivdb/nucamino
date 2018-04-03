@@ -52,14 +52,14 @@ Linux and MacOS:
 
 ```shell
 ./nucamino --help
-./nucamino hiv1b --help
+./nucamino align hiv1b --help
 ```
 
 Windows:
 
 ```windows
 nucamino --help
-nucamino hiv1b --help
+nucamino align hiv1b --help
 ```
 
 Donation
