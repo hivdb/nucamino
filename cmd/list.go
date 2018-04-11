@@ -2,10 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	builtin "github.com/hivdb/nucamino/alignmentprofile/builtin"
+	"github.com/hivdb/nucamino/alignmentprofile/builtin"
 	"github.com/spf13/cobra"
 	"log"
-	"os"
 	"regexp"
 )
 
@@ -29,7 +28,7 @@ regular expression. For example:
 See https://github.com/google/re2/wiki/Syntax for the exact details of
 the regular expression syntax.`,
 	Args: cobra.RangeArgs(0, 1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		profileNames := builtin.List()
 		if len(args) == 1 {
 			var pattern *regexp.Regexp
@@ -37,8 +36,7 @@ the regular expression syntax.`,
 			pattern, err := regexp.Compile(patternSrc)
 			if err != nil {
 				log.Printf("Error in pattern: %v", err)
-				os.Exit(1)
-				return
+				return err
 			}
 			matchingProfileNames := make([]string, 0, len(profileNames))
 			for _, name := range profileNames {
@@ -51,6 +49,7 @@ the regular expression syntax.`,
 		for _, name := range profileNames {
 			fmt.Println(name)
 		}
+		return nil
 	},
 }
 
