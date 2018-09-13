@@ -31,4 +31,14 @@ test: dockerimage
 	@docker rm -f nucamino-test 2>/dev/null || true
 	@docker run --rm -it --name nucamino-test --volume $(shell pwd)/.goenv:/go --volume $(shell pwd):${APPROOT} nucamino-dev ${APPROOT}/hack/test.sh
 
+aws_lambda_zip: cross-build
+	@mkdir -p /tmp/_nucamino_aws_lambda_zip
+	@cp build/nucamino-linux-amd64 /tmp/_nucamino_aws_lambda_zip/nucamino
+	@chmod +x /tmp/_nucamino_aws_lambda_zip/nucamino
+	@cp scripts/aws_lambda_handler.py /tmp/_nucamino_aws_lambda_zip/nucamino_handler.py
+	@cd /tmp/_nucamino_aws_lambda_zip && zip nucamino-aws-lambda.zip nucamino nucamino_handler.py
+	@mv /tmp/_nucamino_aws_lambda_zip/nucamino-aws-lambda.zip build/
+	@ls build/nucamino-aws-lambda.zip
+	@rm -rf /tmp/_nucamino_aws_lambda_zip
+
 .PHONY: dockerimage pprof
