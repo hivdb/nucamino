@@ -10,6 +10,8 @@ import (
 	"github.com/hivdb/nucamino/alignmentprofile/builtin/hcv5"
 	"github.com/hivdb/nucamino/alignmentprofile/builtin/hcv6"
 	"github.com/hivdb/nucamino/alignmentprofile/builtin/hiv1b"
+	"github.com/hivdb/nucamino/alignmentprofile/builtin/hiv2a"
+	"github.com/hivdb/nucamino/alignmentprofile/builtin/hiv2b"
 	"sort"
 )
 
@@ -22,6 +24,8 @@ var profiles = map[string]ap.AlignmentProfile{
 	"hcv5":  hcv5.Profile,
 	"hcv6":  hcv6.Profile,
 	"hiv1b": hiv1b.Profile,
+	"hiv2a": hiv2a.Profile,
+	"hiv2b": hiv2b.Profile,
 }
 
 func Get(name string) (*ap.AlignmentProfile, bool) {
